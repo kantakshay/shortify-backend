@@ -31,7 +31,7 @@ jobs:
 
       # 4. Install Serverless Framework
       - name: Install Serverless
-        run: npm install -g serverless
+        run: npm install -g serverless@3
 
       # 5. Configure AWS credentials
       - name: Configure AWS credentials
