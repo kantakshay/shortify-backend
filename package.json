@@ -19,10 +19,10 @@
   },
   "homepage": "https://github.com/kantakshay/shortify-backend#readme",
   "dependencies": {
-    "aws-sdk": "^2.1693.0",
-    "serverless": "^4.34.0"
+    "aws-sdk": "^2.1693.0"
   },
   "devDependencies": {
-    "serverless-offline": "^14.5.0"
+    "serverless": "^3.40.0",
+    "serverless-offline": "^12.0.4"
   }
 }
