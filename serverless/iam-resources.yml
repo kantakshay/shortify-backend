@@ -1,0 +1,6 @@
+statements:
+  - Effect: Allow
+    Action:
+      - dynamodb:PutItem
+      - dynamodb:GetItem
+    Resource: "*"

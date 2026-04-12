@@ -1,0 +1,15 @@
+functions:
+
+  createUrl:
+    handler: functions/create-url/handler.main
+    events:
+      - http:
+          path: /shorten
+          method: post
+
+  redirect:
+    handler: functions/redirect/handler.main
+    events:
+      - http:
+          path: /{short_code}
+          method: get

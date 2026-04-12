@@ -1,0 +1,28 @@
+service: url-shortener
+frameworkVersion: '3'
+
+plugins:
+  - serverless-offline
+  - serverless-dotenv-plugin
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'ap-south-1'}
+
+  stackName: url-shortener-${self:provider.stage}
+
+  environment: ${file(./serverless/environment.yml):${self:provider.stage}}
+
+  iam:
+    role:
+      statements: ${file(./serverless/iam-resources.yml):statements}
+
+custom: ${file(./serverless/custom.yml):${self:provider.stage}}
+
+functions: ${file(./serverless/functions.yml):functions}
+
+resources:
+  - ${file(./serverless/dynamodb-resources.yml)}
