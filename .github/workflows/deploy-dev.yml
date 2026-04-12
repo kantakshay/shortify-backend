@@ -1,4 +1,5 @@
 name: API Pipeline
+
 on:
   workflow_dispatch:
     inputs:
@@ -15,13 +16,13 @@ jobs:
     steps:
       # 1. Checkout selected branch
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.branch }}
 
       # 2. Setup Node.js
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 18
 
@@ -35,12 +36,11 @@ jobs:
 
       # 5. Configure AWS credentials
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-south-1
 
-      # 6. Deploy
       - name: Deploy to AWS (dev)
-        run: npx serverless deploy --stage dev --region ap-south-1
+        run: serverless deploy --stage dev --region ap-south-1
