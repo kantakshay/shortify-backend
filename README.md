@@ -1,0 +1,178 @@
+# 🔗 Shortify Backend
+
+A **serverless URL shortener backend** built for scalability, performance, and efficient link redirection.
+
+---
+
+## 🚀 Overview
+
+Shortify Backend is a cloud-native URL shortening service that allows users to:
+
+* Generate short links from long URLs
+* Redirect users using short codes
+* Store mappings efficiently using a NoSQL database
+
+Built using a **serverless architecture**, this project demonstrates real-world backend and DevOps practices.
+
+---
+
+## 🏗️ Architecture
+
+```
+Client → API Gateway → Lambda → DynamoDB
+```
+
+* **API Gateway**: Exposes HTTP endpoints
+* **Lambda**: Handles business logic
+* **DynamoDB**: Stores URL mappings
+
+---
+
+## 📂 Project Structure
+
+```
+shortify-backend/
+
+├── .github/workflows/        # CI/CD pipeline
+│   └── deploy-dev.yml
+│
+├── serverless.yml            # Main config
+│
+├── serverless/               # Modular configs
+│   ├── environment.yml
+│   ├── custom.yml
+│   ├── iam-resources.yml
+│   ├── functions.yml
+│   ├── dynamodb-resources.yml
+│
+├── functions/                # Lambda functions
+│   ├── create-url/
+│   │   └── handler.js
+│   ├── redirect/
+│       └── handler.js
+│
+├── package.json
+└── README.md
+```
+
+---
+
+## ⚡ Features
+
+* Serverless architecture (no servers to manage)
+* Manual CI/CD pipeline using GitHub Actions
+* DynamoDB-based storage
+* REST API endpoints
+* Modular infrastructure configuration
+
+---
+
+## 🛠️ Tech Stack
+
+* Node.js
+* Serverless Framework
+* AWS Lambda
+* API Gateway
+* DynamoDB
+* GitHub Actions
+
+---
+
+## 🔌 API Endpoints
+
+### Create Short URL
+
+```
+POST /shorten
+```
+
+**Request Body:**
+
+```json
+{
+  "url": "https://example.com"
+}
+```
+
+**Response:**
+
+```json
+{
+  "short_url": "https://your-domain/abc123"
+}
+```
+
+---
+
+### Redirect
+
+```
+GET /{short_code}
+```
+
+Redirects to the original URL.
+
+---
+
+## 🚀 Deployment
+
+### Manual Deployment via GitHub Actions
+
+1. Go to **Actions** tab
+2. Select workflow
+3. Click **Run workflow**
+4. Enter branch name
+
+---
+
+## 🧪 Local Development
+
+Run locally using:
+
+```
+npx serverless offline
+```
+
+---
+
+## 🔐 Environment Variables
+
+Defined in:
+
+```
+serverless/environment.yml
+```
+
+---
+
+## 📈 Future Improvements
+
+* Base62 ID generation (collision-free)
+* Redis caching for faster redirects
+* Analytics (click tracking)
+* Custom domain support
+* Rate limiting & security
+
+---
+
+## 🧠 Learning Outcomes
+
+This project demonstrates:
+
+* Serverless architecture design
+* Infrastructure as Code (IaC)
+* CI/CD pipeline implementation
+* AWS service integration
+* Debugging real-world deployment issues
+
+---
+
+## 📄 License
+
+MIT License
+
+---
+
+## ✨ Author
+
+Akshay Kant
