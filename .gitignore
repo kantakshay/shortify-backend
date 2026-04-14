@@ -1,2 +1,15 @@
-node_modules
+# Node
+node_modules/
+
+# Serverless
+.serverless/
+
+# Env files
 .env
+
+# Logs
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,4 +1,4 @@
-const db = require("./db");
+const db = require("../shared/dynamoDB");
 
 exports.getLongUrl = async (shortCode) => {
   if (!shortCode) {

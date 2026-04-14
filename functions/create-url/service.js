@@ -1,5 +1,5 @@
 const crypto = require("crypto");
-const {db} = require("../shared/dynamoDB");
+const db = require("../shared/dynamoDB");
 
 // Generate short code
 function generateShortCode() {

@@ -1,6 +1,6 @@
 const { getLongUrl } = require("./service");
 
-exports.handleRequest = async (event) => {
+exports.main = async (event) => {
   try {
     const shortCode = event.pathParameters?.short_code;
 

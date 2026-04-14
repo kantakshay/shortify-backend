@@ -8,7 +8,7 @@ functions:
           method: post
 
   redirect:
-    handler: functions/redirect/handler.main
+    handler: functions/redirect-url/handler.main
     events:
       - http:
           path: /{short_code}

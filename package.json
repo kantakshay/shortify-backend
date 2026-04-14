@@ -19,12 +19,13 @@
     "url": "https://github.com/kantakshay/shortify-backend/issues"
   },
   "homepage": "https://github.com/kantakshay/shortify-backend#readme",
-  "dependencies": {
-    "aws-sdk": "^2.1693.0"
-  },
   "devDependencies": {
     "serverless": "^3.40.0",
     "serverless-dotenv-plugin": "^6.0.0",
     "serverless-offline": "^12.0.4"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.967.0",
+    "@aws-sdk/lib-dynamodb": "^3.967.0"
   }
 }
