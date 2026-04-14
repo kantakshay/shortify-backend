@@ -1,2 +1,5 @@
 dev:
-  logRetentionInDays: 7
+  dummy: true
+
+local:
+  dummy: true

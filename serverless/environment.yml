@@ -1,2 +1,5 @@
 dev:
-  TABLE_NAME: URLMapping-dev
+  TABLE_NAME: url-shortener-dev
+
+local:
+  TABLE_NAME: url-shortener-local
