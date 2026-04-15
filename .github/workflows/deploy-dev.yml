@@ -2,11 +2,6 @@ name: API Pipeline
 
 on:
   workflow_dispatch:
-    inputs:
-      branch:
-        description: "Branch to deploy"
-        required: true
-        default: "main"
 
 jobs:
   deploy:
@@ -14,11 +9,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout selected branch
+      # 1. Checkout the same branch from which workflow is triggered
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.branch }}
+          ref: ${{ github.ref }}
 
       # 2. Setup Node.js
       - name: Setup Node.js
@@ -42,5 +37,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-south-1
 
+      # 6. Deploy to AWS
       - name: Deploy to AWS (dev)
         run: serverless deploy --stage dev --region ap-south-1

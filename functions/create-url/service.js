@@ -1,5 +1,5 @@
 const crypto = require("crypto");
-const db = require("../shared/dynamoDB");
+const saveUrl = require("./dynamoDB");
 
 // Generate short code
 function generateShortCode() {
@@ -14,7 +14,7 @@ async function generateUniqueCode(url) {
     const code = generateShortCode();
 
     try {
-      await db.saveUrl(code, url);
+      await saveUrl(code, url);
       return code;
     } catch (err) {
       // DynamoDB collision

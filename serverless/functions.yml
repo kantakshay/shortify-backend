@@ -6,6 +6,12 @@ functions:
       - http:
           path: /shorten
           method: post
+    package:
+      patterns:
+        - 'functions/create-url/**'
+        - 'shared/**'
+        - 'node_modules/**'
+        - 'package.json'
 
   redirect:
     handler: functions/redirect-url/handler.main
@@ -13,3 +19,9 @@ functions:
       - http:
           path: /{short_code}
           method: get
+    package:
+      patterns:
+        - 'functions/redirect-url/**'
+        - 'shared/**'
+        - 'node_modules/**'
+        - 'package.json'

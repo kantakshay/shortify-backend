@@ -1,5 +1,6 @@
+
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
-const { DynamoDBDocumentClient, PutCommand, GetCommand } = require("@aws-sdk/lib-dynamodb");
+const { DynamoDBDocumentClient, PutCommand } = require("@aws-sdk/lib-dynamodb");
 
 const stage = process.env.STAGE ?? "local";
 const TABLE_NAME = process.env.TABLE_NAME;
@@ -19,30 +20,7 @@ const client = new DynamoDBClient({
 
 const dynamo = DynamoDBDocumentClient.from(client);
 
-// ---- MOCK DB ----
-const store = new Map();
-
-const mockDB = {
-  saveUrl: async (shortCode, longUrl) => {
-    console.log("[MOCK DB] Saving:", shortCode);
-
-    store.set(shortCode, {
-      short_code: shortCode,
-      long_url: longUrl,
-    });
-
-    console.log(`[MOCK DB] Size: ${store.size}`);
-  },
-
-  fetchUrl: async (shortCode) => {
-    console.log("[MOCK DB] Fetching:", shortCode);
-    return store.get(shortCode) || null;
-  },
-};
-
-// ---- DYNAMODB ----
-const dynamoDB = {
-  saveUrl: async (shortCode, longUrl) => {
+  const saveUrl = async (shortCode, longUrl) => {
     try {
       await dynamo.send(new PutCommand({
         TableName: TABLE_NAME,
@@ -62,21 +40,7 @@ const dynamoDB = {
 
       throw err;
     }
-  },
+  }
 
-  fetchUrl: async (shortCode) => {
-    const result = await dynamo.send(new GetCommand({
-      TableName: TABLE_NAME,
-      Key: { short_code: shortCode },
-    }));
 
-    return result.Item || null;
-  },
-};
-
-// ---- STRATEGY ----
-const db = stage === "local" ? mockDB : dynamoDB;
-
-console.log(`Using ${stage === "local" ? "MOCK DB" : "DynamoDB"}`);
-
-module.exports = db;
+module.exports = saveUrl;
