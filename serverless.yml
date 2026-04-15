@@ -26,6 +26,7 @@ resources:
   - ${file(./serverless/dynamodb-resources.yml)}
 
 package:
+  individually: true
   patterns:
     - '!**'              # exclude everything first
     - 'functions/**'     # include functions
