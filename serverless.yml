@@ -8,10 +8,8 @@ plugins:
 provider:
   name: aws
   runtime: nodejs18.x
-
   stage: ${opt:stage, 'dev'}
   region: ${opt:region, 'ap-south-1'}
-
   stackName: url-shortener-${self:provider.stage}
 
   environment: ${file(./serverless/environment.yml):${self:provider.stage}}
@@ -26,3 +24,16 @@ functions: ${file(./serverless/functions.yml):functions}
 
 resources:
   - ${file(./serverless/dynamodb-resources.yml)}
+
+package:
+  patterns:
+    - '!**'              # exclude everything first
+    - 'functions/**'     # include functions
+    - 'shared/**'        # include shared code
+    - 'package.json'
+    - 'node_modules/**'
+
+    # explicitly exclude junk
+    - '!.github/**'
+    - '!serverless/**'
+    - '!*.md'  
