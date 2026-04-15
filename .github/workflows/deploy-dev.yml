@@ -1,12 +1,6 @@
 name: API Pipeline
 
-on:
-  workflow_dispatch:
-    inputs:
-      branch:
-        description: "Branch to deploy"
-        required: false
-        default: "main"
+
 
 jobs:
   deploy:
