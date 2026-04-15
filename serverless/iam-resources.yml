@@ -3,4 +3,5 @@ statements:
     Action:
       - dynamodb:PutItem
       - dynamodb:GetItem
+      - dynamodb:UpdateItem 
     Resource: "*"
