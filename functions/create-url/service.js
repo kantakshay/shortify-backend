@@ -7,7 +7,23 @@ function generateShortCode() {
 }
 
 // Retry-safe creation (handles collisions)
-async function generateUniqueCode(url) {
+async function generateUniqueCode(url, customCode) {
+
+  if (customCode) {
+    customCode = validateCustomCode(customCode)
+
+    try {
+      await saveUrl(customCode, url);
+      return customCode;
+    } catch (err) {
+      if (err.name === "ConditionalCheckFailedException") {
+        throw new Error("Custom code already taken");
+      }
+      throw err;
+    }
+  }
+
+
   let attempts = 0;
 
   while (attempts < 5) {
@@ -18,7 +34,7 @@ async function generateUniqueCode(url) {
       return code;
     } catch (err) {
       // DynamoDB collision
-      if (err.code === "ConditionalCheckFailedException") {
+      if (err.name === "ConditionalCheckFailedException") {
         attempts++;
       } else {
         throw err;
@@ -29,15 +45,52 @@ async function generateUniqueCode(url) {
   throw new Error("Failed to generate unique short code");
 }
 
+const validateCustomCode = (customCode) => {
+  // Type check
+  if (typeof customCode !== "string") {
+    const err = new Error("Custom code must be a string");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Trim spaces
+  const cleaned = customCode.trim();
+
+  // Empty check
+  if (!cleaned) {
+    const err = new Error("Custom code cannot be empty");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Length check
+  if (cleaned.length < 3 || cleaned.length > 20) {
+    const err = new Error("Custom code must be between 3 and 20 characters");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Allowed characters (only alphanumeric)
+  const regex = /^[a-zA-Z0-9]+$/;
+
+  if (!regex.test(cleaned)) {
+    const err = new Error("Custom code can only contain letters and numbers");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Normalize (important)
+  return cleaned.toLowerCase();
+};
 // Main service
-exports.createShortUrl = async ({ url }) => {
+exports.createShortUrl = async ({ url, customCode }) => {
   if (!url) {
     const err = new Error("URL is required");
     err.statusCode = 400;
     throw err;
   }
 
-  const shortCode = await generateUniqueCode(url);
+  const shortCode = await generateUniqueCode(url, customCode);
 
   return {
     short_code: shortCode,
