@@ -103,7 +103,7 @@ const validateUrl = (url) => {
 };
 
 // Main service
-exports.createShortUrl = async ({ url }) => {
+exports.createShortUrl = async ({ url , customCode}) => {
 
   url = validateUrl(url);
 
