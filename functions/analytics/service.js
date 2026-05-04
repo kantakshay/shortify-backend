@@ -1,4 +1,4 @@
-const fetchUrl = require("./dynamoDB");
+const {fetchUrl} = require("./dynamoDB");
 
 const getAnalytics = async (shortCode) => {
 
