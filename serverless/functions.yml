@@ -25,3 +25,16 @@ functions:
         - 'shared/**'
         - 'node_modules/**'
         - 'package.json'
+
+  analytics:
+    handler: functions/analytics/handler.main   
+    events:
+      - http:
+          path: /analytics/{short_code}
+          method: get
+    package:
+      patterns:
+        - 'functions/analytics/**'
+        - 'shared/**'
+        - 'node_modules/**'
+        - 'package.json'
