@@ -1,0 +1,75 @@
+const { silenceConsole, expectCors, parseBody } = require("./helpers");
+
+const { expect } = require("chai");
+const { mockClient } = require("aws-sdk-client-mock");
+const { DynamoDBDocumentClient, GetCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
+
+const { main } = require("../handler");
+
+const visit = (shortCode) => main({ pathParameters: { short_code: shortCode } });
+
+describe("redirect-url handler (GET /{short_code})", () => {
+  let ddbMock;
+
+  before(() => {
+    ddbMock = mockClient(DynamoDBDocumentClient);
+  });
+
+  beforeEach(() => {
+    ddbMock.reset();
+  });
+
+  after(() => {
+    ddbMock.restore();
+  });
+
+  silenceConsole();
+
+  it("returns 302 with the long URL in Location and CORS headers", async () => {
+    ddbMock.on(GetCommand).resolves({
+      Item: { short_code: "abc123", long_url: "https://example.com/page" },
+    });
+    ddbMock.on(UpdateCommand).resolves({});
+
+    const res = await visit("abc123");
+
+    expect(res.statusCode).to.equal(302);
+    expect(res.headers.Location).to.equal("https://example.com/page");
+    expectCors(res);
+  });
+
+  it("reads the short code from the path parameters", async () => {
+    ddbMock.on(GetCommand).resolves({});
+
+    await visit("abc123");
+
+    const input = ddbMock.commandCalls(GetCommand)[0].args[0].input;
+    expect(input.Key).to.deep.equal({ short_code: "abc123" });
+  });
+
+  it("returns 404 with a JSON error for an unknown code", async () => {
+    ddbMock.on(GetCommand).resolves({});
+
+    const res = await visit("nope");
+
+    expect(res.statusCode).to.equal(404);
+    expectCors(res);
+    expect(parseBody(res)).to.deep.equal({ error: "URL not found" });
+  });
+
+  it("returns 400 when the path has no short code", async () => {
+    const res = await main({ pathParameters: null });
+
+    expect(res.statusCode).to.equal(400);
+    expect(parseBody(res).error).to.equal("Short code is required");
+  });
+
+  it("returns 500 when the lookup fails", async () => {
+    ddbMock.on(GetCommand).rejects(new Error("DynamoDB unavailable"));
+
+    const res = await visit("abc123");
+
+    expect(res.statusCode).to.equal(500);
+    expectCors(res);
+  });
+});

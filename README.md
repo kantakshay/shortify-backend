@@ -123,15 +123,20 @@ Redirects to the original URL.
 3. Click **Run workflow**
 4. Enter branch name
 
+The workflow needs these repository secrets: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `SERVERLESS_ACCESS_KEY` (Serverless Framework v4).
+
 ---
 
-## 🧪 Local Development
+## 🧪 Testing
 
-Run locally using:
+Unit tests run locally with DynamoDB mocked, so no AWS access is needed:
 
 ```
-npx serverless offline
+npm test                    # all lambdas
+npm run test:create-url     # one lambda
 ```
+
+End-to-end checks run against the deployed `dev` API.
 
 ---
 

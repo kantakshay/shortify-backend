@@ -11,32 +11,30 @@ jobs:
     steps:
       # 1. Checkout the same branch from which workflow is triggered
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.ref }}
 
-      # 2. Setup Node.js
+      # 2. Setup Node.js (same major as the Lambda runtime, nodejs24.x)
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 18
+          node-version: 24
 
-      # 3. Install dependencies
+      # 3. Install dependencies (includes Serverless Framework v4)
       - name: Install dependencies
         run: npm install
 
-      # 4. Install Serverless Framework
-      - name: Install Serverless
-        run: npm install -g serverless@3
-
-      # 5. Configure AWS credentials
+      # 4. Configure AWS credentials
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-south-1
 
-      # 6. Deploy to AWS
+      # 5. Deploy to AWS (Serverless v4 signs in with an access key)
       - name: Deploy to AWS (dev)
-        run: serverless deploy --stage dev --region ap-south-1
+        run: npx serverless deploy --stage dev --region ap-south-1
+        env:
+          SERVERLESS_ACCESS_KEY: ${{ secrets.SERVERLESS_ACCESS_KEY }}

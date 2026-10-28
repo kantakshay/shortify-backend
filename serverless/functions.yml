@@ -9,6 +9,7 @@ functions:
     package:
       patterns:
         - 'functions/create-url/**'
+        - '!functions/create-url/test/**'
         - 'shared/**'
         - 'node_modules/**'
         - 'package.json'
@@ -22,6 +23,7 @@ functions:
     package:
       patterns:
         - 'functions/redirect-url/**'
+        - '!functions/redirect-url/test/**'
         - 'shared/**'
         - 'node_modules/**'
         - 'package.json'
@@ -35,6 +37,7 @@ functions:
     package:
       patterns:
         - 'functions/analytics/**'
+        - '!functions/analytics/test/**'
         - 'shared/**'
         - 'node_modules/**'
         - 'package.json'
