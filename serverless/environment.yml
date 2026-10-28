@@ -1,7 +1,3 @@
 dev:
   STAGE: dev
   TABLE_NAME: url-shortener-dev
-
-local:
-  STAGE: local
-  TABLE_NAME: url-shortener-local

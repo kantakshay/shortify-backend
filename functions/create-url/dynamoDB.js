@@ -33,11 +33,6 @@ const dynamo = DynamoDBDocumentClient.from(client);
       }));
     } catch (err) {
       console.error("[DynamoDB ERROR]", err);
-
-      if (err.name === "ConditionalCheckFailedException") {
-        throw new Error("Short code already exists");
-      }
-
       throw err;
     }
   }

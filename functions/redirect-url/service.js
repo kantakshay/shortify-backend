@@ -1,4 +1,4 @@
-const {fetchUrl, incrementClicks} = require("./dynamoDB");
+const { fetchUrl, incrementClicks } = require("./dynamoDB");
 
 exports.getLongUrl = async (shortCode) => {
   if (!shortCode) {
@@ -8,7 +8,6 @@ exports.getLongUrl = async (shortCode) => {
   }
 
   const data = await fetchUrl(shortCode);
-  console.log(`show me the data${data}`)
   if (!data || !data.long_url) {
     const err = new Error("URL not found");
     err.statusCode = 404;
