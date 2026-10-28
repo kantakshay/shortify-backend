@@ -37,6 +37,7 @@ const dynamo = DynamoDBDocumentClient.from(client);
         Key: { short_code: shortCode },
 
         UpdateExpression: "SET clicks = if_not_exists(clicks, :zero) + :inc",
+        ConditionExpression: "attribute_exists(short_code)",
 
         ExpressionAttributeValues: {
           ":inc": 1,
