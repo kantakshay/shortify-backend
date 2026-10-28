@@ -17,7 +17,9 @@ async function generateUniqueCode(url, customCode) {
       return customCode;
     } catch (err) {
       if (err.name === "ConditionalCheckFailedException") {
-        throw new Error("Custom code already taken");
+        const conflict = new Error("Custom code already taken");
+        conflict.statusCode = 409;
+        throw conflict;
       }
       throw err;
     }
@@ -42,7 +44,9 @@ async function generateUniqueCode(url, customCode) {
     }
   }
 
-  throw new Error("Failed to generate unique short code");
+  const err = new Error("Failed to generate unique short code");
+  err.statusCode = 500;
+  throw err;
 }
 
 const validateCustomCode = (customCode) => {
