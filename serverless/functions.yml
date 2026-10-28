@@ -1,5 +1,4 @@
 functions:
-
   createUrl:
     handler: functions/create-url/handler.main
     events:
@@ -9,12 +8,12 @@ functions:
           cors: true
     package:
       patterns:
-        - 'functions/create-url/**'
-        - '!functions/create-url/test/**'
-        - 'shared/**'
-        - '!shared/test/**'
-        - 'node_modules/**'
-        - 'package.json'
+        - "functions/create-url/**"
+        - "!functions/create-url/test/**"
+        - "shared/**"
+        - "!shared/test/**"
+        - "node_modules/**"
+        - "package.json"
 
   redirect:
     handler: functions/redirect-url/handler.main
@@ -25,15 +24,15 @@ functions:
           cors: true
     package:
       patterns:
-        - 'functions/redirect-url/**'
-        - '!functions/redirect-url/test/**'
-        - 'shared/**'
-        - '!shared/test/**'
-        - 'node_modules/**'
-        - 'package.json'
+        - "functions/redirect-url/**"
+        - "!functions/redirect-url/test/**"
+        - "shared/**"
+        - "!shared/test/**"
+        - "node_modules/**"
+        - "package.json"
 
   analytics:
-    handler: functions/analytics/handler.main   
+    handler: functions/analytics/handler.main
     events:
       - http:
           path: /analytics/{short_code}
@@ -41,9 +40,9 @@ functions:
           cors: true
     package:
       patterns:
-        - 'functions/analytics/**'
-        - '!functions/analytics/test/**'
-        - 'shared/**'
-        - '!shared/test/**'
-        - 'node_modules/**'
-        - 'package.json'
+        - "functions/analytics/**"
+        - "!functions/analytics/test/**"
+        - "shared/**"
+        - "!shared/test/**"
+        - "node_modules/**"
+        - "package.json"

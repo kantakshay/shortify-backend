@@ -47,8 +47,8 @@ jobs:
       #    reach Lambda or DynamoDB. Serverless has no setting for stage throttling.
       - name: Set API throttling (dev)
         env:
-          RATE_LIMIT: 10   # requests per second, steady
-          BURST_LIMIT: 20  # requests allowed at once
+          RATE_LIMIT: 10 # requests per second, steady
+          BURST_LIMIT: 20 # requests allowed at once
         run: |
           API_ID=$(aws apigateway get-rest-apis --query "items[?name=='dev-url-shortener'].id | [0]" --output text)
           if [ -z "$API_ID" ] || [ "$API_ID" = "None" ]; then

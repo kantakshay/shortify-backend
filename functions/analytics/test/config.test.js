@@ -4,10 +4,10 @@ const path = require("path");
 const yaml = require("js-yaml");
 
 const config = yaml.load(
-  fs.readFileSync(path.join(__dirname, "../../../serverless/functions.yml"), "utf8")
+  fs.readFileSync(path.join(__dirname, "../../../serverless/functions.yml"), "utf8"),
 );
 const iam = yaml.load(
-  fs.readFileSync(path.join(__dirname, "../../../serverless/iam-resources.yml"), "utf8")
+  fs.readFileSync(path.join(__dirname, "../../../serverless/iam-resources.yml"), "utf8"),
 );
 const URL_TABLE_ARN = { "Fn::GetAtt": ["UrlTable", "Arn"] };
 
@@ -30,7 +30,9 @@ describe("analytics config (serverless/functions.yml)", () => {
     const { patterns } = config.functions.analytics.package;
 
     expect(patterns).to.include("shared/**");
-    expect(patterns.indexOf("!functions/analytics/test/**")).to.be.above(patterns.indexOf("functions/analytics/**"));
+    expect(patterns.indexOf("!functions/analytics/test/**")).to.be.above(
+      patterns.indexOf("functions/analytics/**"),
+    );
     expect(patterns.indexOf("!shared/test/**")).to.be.above(patterns.indexOf("shared/**"));
   });
 

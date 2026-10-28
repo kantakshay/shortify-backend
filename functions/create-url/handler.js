@@ -6,7 +6,7 @@ exports.main = async (event) => {
 
   try {
     body = JSON.parse(event.body || "{}");
-  } catch (err) {
+  } catch {
     return jsonResponse(400, { error: "Invalid JSON body" });
   }
 
@@ -18,7 +18,7 @@ exports.main = async (event) => {
   try {
     const result = await createShortUrl(body);
 
-    return jsonResponse(200, result);
+    return jsonResponse(201, result);
   } catch (err) {
     console.error("Handler Error:", err);
 
