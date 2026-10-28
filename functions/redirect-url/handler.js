@@ -1,4 +1,5 @@
 const { getLongUrl } = require("./service");
+const { redirectResponse, errorToResponse } = require("../../shared/response");
 
 exports.main = async (event) => {
   try {
@@ -6,28 +7,10 @@ exports.main = async (event) => {
 
     const longUrl = await getLongUrl(shortCode);
 
-    return {
-      statusCode: 302,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "*",
-        "Access-Control-Allow-Methods": "*",
-        Location: longUrl,
-      },
-    };
+    return redirectResponse(longUrl);
+  } catch (err) {
+    console.error("Entry Error:", err);
 
-  } catch (error) {
-    console.error("Entry Error:", error);
-
-    return {
-      statusCode: error.statusCode || 500,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "*",
-        "Access-Control-Allow-Methods": "*"
-      },
-      // Only expected errors (with a statusCode) show their message to the caller
-      body: JSON.stringify({ error: error.statusCode ? error.message : "Internal Server Error" }),
-    };
+    return errorToResponse(err);
   }
 };
