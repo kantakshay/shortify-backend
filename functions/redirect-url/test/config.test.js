@@ -4,10 +4,10 @@ const path = require("path");
 const yaml = require("js-yaml");
 
 const config = yaml.load(
-  fs.readFileSync(path.join(__dirname, "../../../serverless/functions.yml"), "utf8")
+  fs.readFileSync(path.join(__dirname, "../../../serverless/functions.yml"), "utf8"),
 );
 const iam = yaml.load(
-  fs.readFileSync(path.join(__dirname, "../../../serverless/iam-resources.yml"), "utf8")
+  fs.readFileSync(path.join(__dirname, "../../../serverless/iam-resources.yml"), "utf8"),
 );
 const URL_TABLE_ARN = { "Fn::GetAtt": ["UrlTable", "Arn"] };
 
@@ -21,6 +21,17 @@ describe("redirect-url config (serverless/functions.yml)", () => {
   // Regression test for Bug 3: API Gateway only answers CORS preflights when cors is on.
   it("enables CORS on every http event", () => {
     events.forEach(({ http }) => expect(http.cors).to.equal(true));
+  });
+
+  // Lambda zips get the shared code, but never test files.
+  it("packages shared code without any tests", () => {
+    const { patterns } = config.functions.redirect.package;
+
+    expect(patterns).to.include("shared/**");
+    expect(patterns.indexOf("!functions/redirect-url/test/**")).to.be.above(
+      patterns.indexOf("functions/redirect-url/**"),
+    );
+    expect(patterns.indexOf("!shared/test/**")).to.be.above(patterns.indexOf("shared/**"));
   });
 
   // Security: the Lambda role must not reach every DynamoDB table in the account.

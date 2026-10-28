@@ -1,9 +1,9 @@
 // Test helpers for the create-url lambda.
-// Require this before the code under test: dynamoDB.js reads these env vars
-// when it loads, and throws if TABLE_NAME is missing outside the local stage.
-process.env.STAGE = "test";
+// Require this before the code under test: shared/dynamo.js and service.js read
+// these env vars when they load, and throw if TABLE_NAME or BASE_URL is missing.
 process.env.TABLE_NAME = "test-table";
 process.env.AWS_REGION = "ap-south-1";
+process.env.BASE_URL = "https://short.test/dev";
 
 const { expect } = require("chai");
 

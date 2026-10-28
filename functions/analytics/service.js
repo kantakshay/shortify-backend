@@ -1,7 +1,6 @@
-const {fetchUrl} = require("./dynamoDB");
+const { fetchUrl } = require("./dynamoDB");
 
 const getAnalytics = async (shortCode) => {
-
   if (!shortCode) {
     const err = new Error("Short code is required");
     err.statusCode = 400;
@@ -24,4 +23,4 @@ const getAnalytics = async (shortCode) => {
   };
 };
 
-module.exports = {getAnalytics};
+module.exports = { getAnalytics };

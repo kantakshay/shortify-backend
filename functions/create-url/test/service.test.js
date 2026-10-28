@@ -26,13 +26,13 @@ describe("create-url service: createShortUrl", () => {
   const savedItems = () => ddbMock.commandCalls(PutCommand).map((call) => call.args[0].input.Item);
 
   describe("random short code", () => {
-    it("returns an 8-char hex code and saves the URL under it", async () => {
+    it("returns an 8-char hex code, its full short URL, and saves the URL under it", async () => {
       ddbMock.on(PutCommand).resolves({});
 
       const result = await createShortUrl({ url: "https://example.com/page" });
 
       expect(result.short_code).to.match(/^[0-9a-f]{8}$/);
-      expect(result.short_url).to.equal(result.short_code);
+      expect(result.short_url).to.equal(`https://short.test/dev/${result.short_code}`);
       expect(savedItems()).to.have.lengthOf(1);
       expect(savedItems()[0]).to.include({
         short_code: result.short_code,
@@ -87,14 +87,25 @@ describe("create-url service: createShortUrl", () => {
       const result = await createShortUrl({ url: "https://example.com", customCode: "  MyCode1 " });
 
       expect(result.short_code).to.equal("mycode1");
+      expect(result.short_url).to.equal("https://short.test/dev/mycode1");
       expect(savedItems()[0].short_code).to.equal("mycode1");
+    });
+
+    it("uses a random code when customCode is an empty string", async () => {
+      ddbMock.on(PutCommand).resolves({});
+
+      const result = await createShortUrl({ url: "https://example.com", customCode: "" });
+
+      expect(result.short_code).to.match(/^[0-9a-f]{8}$/);
     });
 
     // Regression test for Bug 2: a taken custom code used to surface as a 500.
     it("throws a 409 when the custom code is already taken", async () => {
       ddbMock.on(PutCommand).rejects(conditionalCheckFailed());
 
-      const err = await catchError(createShortUrl({ url: "https://example.com", customCode: "promo" }));
+      const err = await catchError(
+        createShortUrl({ url: "https://example.com", customCode: "promo" }),
+      );
 
       expect(err.statusCode).to.equal(409);
       expect(err.message).to.equal("Custom code already taken");
@@ -105,7 +116,11 @@ describe("create-url service: createShortUrl", () => {
       ["is not a string", 12345, "Custom code must be a string"],
       ["is only spaces", "   ", "Custom code cannot be empty"],
       ["is shorter than 3 chars", "ab", "Custom code must be between 3 and 20 characters"],
-      ["is longer than 20 chars", "a".repeat(21), "Custom code must be between 3 and 20 characters"],
+      [
+        "is longer than 20 chars",
+        "a".repeat(21),
+        "Custom code must be between 3 and 20 characters",
+      ],
       ["has special characters", "my-code", "Custom code can only contain letters and numbers"],
     ];
 
@@ -152,5 +167,50 @@ describe("create-url service: createShortUrl", () => {
         expect(savedItems()).to.have.lengthOf(0);
       });
     });
+  });
+});
+
+describe("create-url service: BASE_URL", () => {
+  const servicePath = require.resolve("../service");
+  let ddbMock;
+
+  before(() => {
+    ddbMock = mockClient(DynamoDBDocumentClient);
+    ddbMock.on(PutCommand).resolves({});
+  });
+
+  after(() => {
+    ddbMock.restore();
+  });
+
+  // Loads a fresh copy of ../service with the given BASE_URL (undefined = unset),
+  // then puts the env var and the module cache back.
+  const loadWithBaseUrl = (value) => {
+    const saved = process.env.BASE_URL;
+    if (value === undefined) delete process.env.BASE_URL;
+    else process.env.BASE_URL = value;
+    delete require.cache[servicePath];
+
+    try {
+      return require(servicePath);
+    } finally {
+      process.env.BASE_URL = saved;
+      delete require.cache[servicePath];
+    }
+  };
+
+  it("drops a trailing slash so short_url has no double slash", async () => {
+    const service = loadWithBaseUrl("https://short.test/dev/");
+
+    const result = await service.createShortUrl({
+      url: "https://example.com",
+      customCode: "promo",
+    });
+
+    expect(result.short_url).to.equal("https://short.test/dev/promo");
+  });
+
+  it("throws at load time when BASE_URL is not set", () => {
+    expect(() => loadWithBaseUrl(undefined)).to.throw("BASE_URL is not defined");
   });
 });
