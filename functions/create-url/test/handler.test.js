@@ -63,14 +63,42 @@ describe("create-url handler (POST /shorten)", () => {
     expect(parseBody(res).error).to.equal("Custom code already taken");
   });
 
-  it("returns 500 for unexpected errors", async () => {
+  // Security: internal error details must not reach the caller.
+  it("returns 500 with a generic message for unexpected errors", async () => {
     ddbMock.on(PutCommand).rejects(new Error("Throughput exceeded"));
 
     const res = await post({ url: "https://example.com" });
 
     expect(res.statusCode).to.equal(500);
     expectCors(res);
-    expect(parseBody(res)).to.have.property("error");
+    expect(parseBody(res)).to.deep.equal({ error: "Internal Server Error" });
+  });
+
+  it("keeps its own message for expected 500s", async () => {
+    ddbMock.on(PutCommand).rejects(conditionalCheckFailed());
+
+    const res = await post({ url: "https://example.com" });
+
+    expect(res.statusCode).to.equal(500);
+    expect(parseBody(res).error).to.equal("Failed to generate unique short code");
+  });
+
+  // Security: the full request (headers, source IP, body) must not be logged.
+  it("does not log the request", async () => {
+    ddbMock.on(PutCommand).resolves({});
+    const logged = [];
+    console.log = (...args) => logged.push(args);
+    console.error = (...args) => logged.push(args);
+
+    await main({
+      headers: { "X-Forwarded-For": "203.0.113.7" },
+      requestContext: { identity: { sourceIp: "203.0.113.7" } },
+      body: JSON.stringify({ url: "https://example.com/private-page" }),
+    });
+
+    const output = JSON.stringify(logged);
+    expect(output).to.not.include("203.0.113.7");
+    expect(output).to.not.include("private-page");
   });
 
   // Regression test for Bug 4: this response used to have no CORS headers.

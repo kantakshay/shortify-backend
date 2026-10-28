@@ -5,9 +5,6 @@ const { DynamoDBDocumentClient, GetCommand ,UpdateCommand} = require("@aws-sdk/l
 const stage = process.env.STAGE ?? "local";
 const TABLE_NAME = process.env.TABLE_NAME;
 
-console.log("----STAGE:-----", process.env.STAGE);
-console.log("----Table name:-----", process.env.TABLE_NAME);
-
 // Validate config
 if (!TABLE_NAME && stage !== "local") {
   throw new Error("TABLE_NAME is not defined");

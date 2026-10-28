@@ -1,4 +1,4 @@
-const { expectCors, parseBody } = require("./helpers");
+const { silenceConsole, expectCors, parseBody } = require("./helpers");
 
 const { expect } = require("chai");
 const { mockClient } = require("aws-sdk-client-mock");
@@ -22,6 +22,8 @@ describe("analytics handler (GET /analytics/{short_code})", () => {
   after(() => {
     ddbMock.restore();
   });
+
+  silenceConsole();
 
   it("returns 200 with the stats as JSON and CORS headers", async () => {
     ddbMock.on(GetCommand).resolves({
@@ -56,12 +58,14 @@ describe("analytics handler (GET /analytics/{short_code})", () => {
     expect(parseBody(res).error).to.equal("Short code is required");
   });
 
-  it("returns 500 when the lookup fails", async () => {
+  // Security: internal error details must not reach the caller.
+  it("returns 500 with a generic message when the lookup fails", async () => {
     ddbMock.on(GetCommand).rejects(new Error("DynamoDB unavailable"));
 
     const res = await getStats("abc123");
 
     expect(res.statusCode).to.equal(500);
     expectCors(res);
+    expect(parseBody(res)).to.deep.equal({ error: "Internal Server Error" });
   });
 });

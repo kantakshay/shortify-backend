@@ -18,6 +18,8 @@ exports.main = async (event) => {
     };
 
   } catch (error) {
+    console.error("Analytics Error:", error);
+
     return {
       statusCode: error.statusCode || 500,
       headers: {
@@ -25,7 +27,8 @@ exports.main = async (event) => {
         "Access-Control-Allow-Headers": "*",
         "Access-Control-Allow-Methods": "*"
       },
-      body: JSON.stringify({ error: error.message }),
+      // Only expected errors (with a statusCode) show their message to the caller
+      body: JSON.stringify({ error: error.statusCode ? error.message : "Internal Server Error" }),
     };
   }
 };

@@ -17,6 +17,23 @@ const catchError = async (promise) => {
   throw new Error("Expected the promise to reject, but it resolved");
 };
 
+// Hides log output from the code under test. Call inside a describe block.
+const silenceConsole = () => {
+  const original = {};
+
+  beforeEach(() => {
+    original.log = console.log;
+    original.error = console.error;
+    console.log = () => {};
+    console.error = () => {};
+  });
+
+  afterEach(() => {
+    console.log = original.log;
+    console.error = original.error;
+  });
+};
+
 const expectCors = (res) => {
   expect(res.headers).to.include({
     "Access-Control-Allow-Origin": "*",
@@ -27,4 +44,4 @@ const expectCors = (res) => {
 
 const parseBody = (res) => JSON.parse(res.body);
 
-module.exports = { catchError, expectCors, parseBody };
+module.exports = { catchError, silenceConsole, expectCors, parseBody };

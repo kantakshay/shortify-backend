@@ -3,10 +3,8 @@ const { createShortUrl } = require("./service");
 exports.main = async (event) => {
   let body;
 
-  console.log("event-----", event);
   try {
     body = JSON.parse(event.body || "{}");
-    console.log("body---", body)
   } catch (err) {
     return {
       statusCode: 400,
@@ -61,8 +59,9 @@ exports.main = async (event) => {
         "Access-Control-Allow-Headers": "*",
         "Access-Control-Allow-Methods": "*"
       },
+      // Only expected errors (with a statusCode) show their message to the caller
       body: JSON.stringify({
-        error: error.message || "Internal Server Error",
+        error: error.statusCode ? error.message : "Internal Server Error",
       }),
     };
   }

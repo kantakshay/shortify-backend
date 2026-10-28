@@ -25,7 +25,11 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # 4. Configure AWS credentials
+      # 4. Run unit tests: a failing test stops the deploy
+      - name: Run tests
+        run: npm test
+
+      # 5. Configure AWS credentials
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
@@ -33,8 +37,25 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-south-1
 
-      # 5. Deploy to AWS (Serverless v4 signs in with an access key)
+      # 6. Deploy to AWS (Serverless v4 signs in with an access key)
       - name: Deploy to AWS (dev)
         run: npx serverless deploy --stage dev --region ap-south-1
         env:
           SERVERLESS_ACCESS_KEY: ${{ secrets.SERVERLESS_ACCESS_KEY }}
+
+      # 7. Throttle the whole dev API: requests over the limit get 429 and never
+      #    reach Lambda or DynamoDB. Serverless has no setting for stage throttling.
+      - name: Set API throttling (dev)
+        env:
+          RATE_LIMIT: 10   # requests per second, steady
+          BURST_LIMIT: 20  # requests allowed at once
+        run: |
+          API_ID=$(aws apigateway get-rest-apis --query "items[?name=='dev-url-shortener'].id | [0]" --output text)
+          if [ -z "$API_ID" ] || [ "$API_ID" = "None" ]; then
+            echo "REST API 'dev-url-shortener' not found" >&2
+            exit 1
+          fi
+          aws apigateway update-stage --rest-api-id "$API_ID" --stage-name dev \
+            --patch-operations \
+              "op=replace,path=/*/*/throttling/rateLimit,value=$RATE_LIMIT" \
+              "op=replace,path=/*/*/throttling/burstLimit,value=$BURST_LIMIT"
