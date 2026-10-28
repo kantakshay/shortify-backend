@@ -13,3 +13,7 @@ npm-debug.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# Claude Code
+CLAUDE.md
+CODE_REVIEW.md
