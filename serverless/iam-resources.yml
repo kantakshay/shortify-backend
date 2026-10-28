@@ -3,5 +3,7 @@ statements:
     Action:
       - dynamodb:PutItem
       - dynamodb:GetItem
-      - dynamodb:UpdateItem 
-    Resource: "*"
+      - dynamodb:UpdateItem
+    # Only the URL table, not every table in the account
+    Resource:
+      Fn::GetAtt: [UrlTable, Arn]

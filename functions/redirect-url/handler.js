@@ -26,7 +26,8 @@ exports.main = async (event) => {
         "Access-Control-Allow-Headers": "*",
         "Access-Control-Allow-Methods": "*"
       },
-      body: JSON.stringify({ error: error.message || "Internal Server Error" }),
+      // Only expected errors (with a statusCode) show their message to the caller
+      body: JSON.stringify({ error: error.statusCode ? error.message : "Internal Server Error" }),
     };
   }
 };
