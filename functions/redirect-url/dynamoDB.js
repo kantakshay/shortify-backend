@@ -1,16 +1,18 @@
 const { GetCommand, UpdateCommand } = require("@aws-sdk/lib-dynamodb");
 const { dynamo, TABLE_NAME } = require("../../shared/dynamo");
 
-  const fetchUrl = async (shortCode) => {
-    const result = await dynamo.send(new GetCommand({
+const fetchUrl = async (shortCode) => {
+  const result = await dynamo.send(
+    new GetCommand({
       TableName: TABLE_NAME,
       Key: { short_code: shortCode },
-    }));
+    }),
+  );
 
-    return result.Item || null;
-  }
+  return result.Item || null;
+};
 
- const incrementClicks = async (shortCode) => {
+const incrementClicks = async (shortCode) => {
   try {
     await dynamo.send(
       new UpdateCommand({
@@ -24,7 +26,7 @@ const { dynamo, TABLE_NAME } = require("../../shared/dynamo");
           ":inc": 1,
           ":zero": 0,
         },
-      })
+      }),
     );
   } catch (err) {
     console.error("[DynamoDB ERROR - incrementClicks]", err);
@@ -32,4 +34,4 @@ const { dynamo, TABLE_NAME } = require("../../shared/dynamo");
   }
 };
 
-  module.exports= {incrementClicks, fetchUrl}
+module.exports = { incrementClicks, fetchUrl };

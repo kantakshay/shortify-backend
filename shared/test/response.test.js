@@ -29,7 +29,9 @@ describe("shared response helpers", () => {
       const err = new Error("Failed to generate unique short code");
       err.statusCode = 500;
 
-      expect(JSON.parse(errorToResponse(err).body)).to.deep.equal({ error: "Failed to generate unique short code" });
+      expect(JSON.parse(errorToResponse(err).body)).to.deep.equal({
+        error: "Failed to generate unique short code",
+      });
     });
 
     // Security: internal error details must not reach the caller.

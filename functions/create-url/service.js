@@ -97,7 +97,7 @@ const validateUrl = (url) => {
   let parsed;
   try {
     parsed = new URL(url);
-  } catch (error) {
+  } catch {
     const err = new Error("Invalid URL format");
     err.statusCode = 400;
     throw err;
@@ -114,8 +114,7 @@ const validateUrl = (url) => {
 };
 
 // Main service
-exports.createShortUrl = async ({ url , customCode}) => {
-
+exports.createShortUrl = async ({ url, customCode }) => {
   if (!url) {
     const err = new Error("URL is required");
     err.statusCode = 400;
@@ -124,9 +123,7 @@ exports.createShortUrl = async ({ url , customCode}) => {
 
   url = validateUrl(url);
 
-  const shortCode = customCode
-    ? await saveCustomCode(url, customCode)
-    : await saveRandomCode(url);
+  const shortCode = customCode ? await saveCustomCode(url, customCode) : await saveRandomCode(url);
 
   return {
     short_code: shortCode,

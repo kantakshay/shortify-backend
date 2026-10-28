@@ -103,7 +103,9 @@ describe("create-url service: createShortUrl", () => {
     it("throws a 409 when the custom code is already taken", async () => {
       ddbMock.on(PutCommand).rejects(conditionalCheckFailed());
 
-      const err = await catchError(createShortUrl({ url: "https://example.com", customCode: "promo" }));
+      const err = await catchError(
+        createShortUrl({ url: "https://example.com", customCode: "promo" }),
+      );
 
       expect(err.statusCode).to.equal(409);
       expect(err.message).to.equal("Custom code already taken");
@@ -114,7 +116,11 @@ describe("create-url service: createShortUrl", () => {
       ["is not a string", 12345, "Custom code must be a string"],
       ["is only spaces", "   ", "Custom code cannot be empty"],
       ["is shorter than 3 chars", "ab", "Custom code must be between 3 and 20 characters"],
-      ["is longer than 20 chars", "a".repeat(21), "Custom code must be between 3 and 20 characters"],
+      [
+        "is longer than 20 chars",
+        "a".repeat(21),
+        "Custom code must be between 3 and 20 characters",
+      ],
       ["has special characters", "my-code", "Custom code can only contain letters and numbers"],
     ];
 
@@ -196,7 +202,10 @@ describe("create-url service: BASE_URL", () => {
   it("drops a trailing slash so short_url has no double slash", async () => {
     const service = loadWithBaseUrl("https://short.test/dev/");
 
-    const result = await service.createShortUrl({ url: "https://example.com", customCode: "promo" });
+    const result = await service.createShortUrl({
+      url: "https://example.com",
+      customCode: "promo",
+    });
 
     expect(result.short_url).to.equal("https://short.test/dev/promo");
   });

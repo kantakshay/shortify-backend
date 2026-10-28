@@ -1,5 +1,5 @@
 service: url-shortener
-frameworkVersion: '4'
+frameworkVersion: "4"
 
 provider:
   name: aws
@@ -24,12 +24,12 @@ resources:
 package:
   individually: true
   patterns:
-    - '!**'              # exclude everything first
-    - 'shared/**'        # include shared code
-    - 'package.json'
-    - 'node_modules/**'
+    - "!**" # exclude everything first
+    - "shared/**" # include shared code
+    - "package.json"
+    - "node_modules/**"
 
     # explicitly exclude junk
-    - '!.github/**'
-    - '!serverless/**'
-    - '!*.md'  
+    - "!.github/**"
+    - "!serverless/**"
+    - "!*.md"

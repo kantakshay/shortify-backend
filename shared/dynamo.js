@@ -10,7 +10,7 @@ if (!TABLE_NAME) {
 }
 
 const dynamo = DynamoDBDocumentClient.from(
-  new DynamoDBClient({ region: process.env.AWS_REGION || "ap-south-1" })
+  new DynamoDBClient({ region: process.env.AWS_REGION || "ap-south-1" }),
 );
 
 module.exports = { dynamo, TABLE_NAME };

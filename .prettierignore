@@ -1,0 +1,6 @@
+# Generated or not ours to format
+package-lock.json
+.claude/
+
+# Hand-written docs keep their own layout
+*.md

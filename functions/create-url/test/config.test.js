@@ -4,20 +4,20 @@ const path = require("path");
 const yaml = require("js-yaml");
 
 const config = yaml.load(
-  fs.readFileSync(path.join(__dirname, "../../../serverless/functions.yml"), "utf8")
+  fs.readFileSync(path.join(__dirname, "../../../serverless/functions.yml"), "utf8"),
 );
 const iam = yaml.load(
-  fs.readFileSync(path.join(__dirname, "../../../serverless/iam-resources.yml"), "utf8")
+  fs.readFileSync(path.join(__dirname, "../../../serverless/iam-resources.yml"), "utf8"),
 );
 const URL_TABLE_ARN = { "Fn::GetAtt": ["UrlTable", "Arn"] };
 const workflow = yaml.load(
-  fs.readFileSync(path.join(__dirname, "../../../.github/workflows/deploy-dev.yml"), "utf8")
+  fs.readFileSync(path.join(__dirname, "../../../.github/workflows/deploy-dev.yml"), "utf8"),
 );
 const testWorkflow = yaml.load(
-  fs.readFileSync(path.join(__dirname, "../../../.github/workflows/test.yml"), "utf8")
+  fs.readFileSync(path.join(__dirname, "../../../.github/workflows/test.yml"), "utf8"),
 );
 const environment = yaml.load(
-  fs.readFileSync(path.join(__dirname, "../../../serverless/environment.yml"), "utf8")
+  fs.readFileSync(path.join(__dirname, "../../../serverless/environment.yml"), "utf8"),
 );
 
 describe("create-url config (serverless/functions.yml)", () => {
@@ -38,7 +38,9 @@ describe("create-url config (serverless/functions.yml)", () => {
     const { patterns } = config.functions.createUrl.package;
 
     expect(patterns).to.include("shared/**");
-    expect(patterns.indexOf("!functions/create-url/test/**")).to.be.above(patterns.indexOf("functions/create-url/**"));
+    expect(patterns.indexOf("!functions/create-url/test/**")).to.be.above(
+      patterns.indexOf("functions/create-url/**"),
+    );
     expect(patterns.indexOf("!shared/test/**")).to.be.above(patterns.indexOf("shared/**"));
   });
 
@@ -88,8 +90,12 @@ describe("create-url config (serverless/functions.yml)", () => {
     });
   });
 
-  it("runs the unit tests on pull requests", () => {
+  it("runs lint, the format check and the unit tests on pull requests", () => {
     expect(testWorkflow.on).to.have.property("pull_request");
-    expect(testWorkflow.jobs.test.steps.map((s) => s.run)).to.include("npm test");
+    expect(testWorkflow.jobs.test.steps.map((s) => s.run)).to.include.members([
+      "npm run lint",
+      "npm run format:check",
+      "npm test",
+    ]);
   });
 });

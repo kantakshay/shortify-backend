@@ -49,7 +49,9 @@ describe("create-url handler (POST /shorten)", () => {
 
     expect(res.statusCode).to.equal(400);
     expectCors(res);
-    expect(parseBody(res)).to.deep.equal({ error: "Custom code must be between 3 and 20 characters" });
+    expect(parseBody(res)).to.deep.equal({
+      error: "Custom code must be between 3 and 20 characters",
+    });
   });
 
   // Regression test for Bug 2: a taken custom code used to come back as a 500.
