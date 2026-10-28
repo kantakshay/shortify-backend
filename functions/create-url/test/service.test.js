@@ -91,6 +91,14 @@ describe("create-url service: createShortUrl", () => {
       expect(savedItems()[0].short_code).to.equal("mycode1");
     });
 
+    it("uses a random code when customCode is an empty string", async () => {
+      ddbMock.on(PutCommand).resolves({});
+
+      const result = await createShortUrl({ url: "https://example.com", customCode: "" });
+
+      expect(result.short_code).to.match(/^[0-9a-f]{8}$/);
+    });
+
     // Regression test for Bug 2: a taken custom code used to surface as a 500.
     it("throws a 409 when the custom code is already taken", async () => {
       ddbMock.on(PutCommand).rejects(conditionalCheckFailed());

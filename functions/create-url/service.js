@@ -14,39 +14,37 @@ function generateShortCode() {
   return crypto.randomBytes(4).toString("hex");
 }
 
-// Retry-safe creation (handles collisions)
-async function generateUniqueCode(url, customCode) {
+// How many random codes to try before giving up
+const MAX_ATTEMPTS = 5;
 
-  if (customCode) {
-    customCode = validateCustomCode(customCode)
+// Saves the URL under the caller's custom code; 409 if the code is taken
+async function saveCustomCode(url, customCode) {
+  const code = validateCustomCode(customCode);
 
-    try {
-      await saveUrl(customCode, url);
-      return customCode;
-    } catch (err) {
-      if (err.name === "ConditionalCheckFailedException") {
-        const conflict = new Error("Custom code already taken");
-        conflict.statusCode = 409;
-        throw conflict;
-      }
-      throw err;
+  try {
+    await saveUrl(code, url);
+    return code;
+  } catch (err) {
+    if (err.name === "ConditionalCheckFailedException") {
+      const conflict = new Error("Custom code already taken");
+      conflict.statusCode = 409;
+      throw conflict;
     }
+    throw err;
   }
+}
 
-
-  let attempts = 0;
-
-  while (attempts < 5) {
+// Saves the URL under a random code, trying a new code on each collision
+async function saveRandomCode(url) {
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const code = generateShortCode();
 
     try {
       await saveUrl(code, url);
       return code;
     } catch (err) {
-      // DynamoDB collision
-      if (err.name === "ConditionalCheckFailedException") {
-        attempts++;
-      } else {
+      // Anything other than "code already used" is a real failure
+      if (err.name !== "ConditionalCheckFailedException") {
         throw err;
       }
     }
@@ -126,7 +124,9 @@ exports.createShortUrl = async ({ url , customCode}) => {
 
   url = validateUrl(url);
 
-  const shortCode = await generateUniqueCode(url, customCode);
+  const shortCode = customCode
+    ? await saveCustomCode(url, customCode)
+    : await saveRandomCode(url);
 
   return {
     short_code: shortCode,
