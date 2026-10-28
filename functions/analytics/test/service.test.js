@@ -1,0 +1,92 @@
+const { catchError } = require("./helpers");
+
+const { expect } = require("chai");
+const { mockClient } = require("aws-sdk-client-mock");
+const { DynamoDBDocumentClient, GetCommand } = require("@aws-sdk/lib-dynamodb");
+
+const { getAnalytics } = require("../service");
+
+describe("analytics service: getAnalytics", () => {
+  let ddbMock;
+
+  before(() => {
+    ddbMock = mockClient(DynamoDBDocumentClient);
+  });
+
+  beforeEach(() => {
+    ddbMock.reset();
+  });
+
+  after(() => {
+    ddbMock.restore();
+  });
+
+  it("returns only short_code, long_url and clicks", async () => {
+    ddbMock.on(GetCommand).resolves({
+      Item: {
+        short_code: "abc123",
+        long_url: "https://example.com",
+        clicks: 42,
+        created_at: "2026-10-28T00:00:00.000Z",
+      },
+    });
+
+    const stats = await getAnalytics("abc123");
+
+    expect(stats).to.deep.equal({
+      short_code: "abc123",
+      long_url: "https://example.com",
+      clicks: 42,
+    });
+  });
+
+  it("reports 0 clicks for a code that has never been visited", async () => {
+    ddbMock.on(GetCommand).resolves({
+      Item: { short_code: "fresh1", long_url: "https://example.com" },
+    });
+
+    const stats = await getAnalytics("fresh1");
+
+    expect(stats.clicks).to.equal(0);
+  });
+
+  it("throws a 404 for an unknown code", async () => {
+    ddbMock.on(GetCommand).resolves({});
+
+    const err = await catchError(getAnalytics("nope"));
+
+    expect(err.statusCode).to.equal(404);
+    expect(err.message).to.equal("URL not found");
+  });
+
+  it("throws a 400 when the short code is missing", async () => {
+    const err = await catchError(getAnalytics(undefined));
+
+    expect(err.statusCode).to.equal(400);
+    expect(err.message).to.equal("Short code is required");
+    expect(ddbMock.commandCalls(GetCommand)).to.have.lengthOf(0);
+  });
+
+  it("rethrows lookup failures", async () => {
+    ddbMock.on(GetCommand).rejects(new Error("DynamoDB unavailable"));
+
+    const err = await catchError(getAnalytics("abc123"));
+
+    expect(err.message).to.equal("DynamoDB unavailable");
+    expect(err.statusCode).to.be.undefined;
+  });
+
+  // Known bugs from CODE_REVIEW.md. Un-skip each one when it's fixed.
+  describe("known bugs", () => {
+    it.skip("Bug 7: looks up codes in lowercase to match stored custom codes", async () => {
+      ddbMock.on(GetCommand).resolves({
+        Item: { short_code: "mycode", long_url: "https://example.com" },
+      });
+
+      await getAnalytics("MyCode");
+
+      const input = ddbMock.commandCalls(GetCommand)[0].args[0].input;
+      expect(input.Key).to.deep.equal({ short_code: "mycode" });
+    });
+  });
+});

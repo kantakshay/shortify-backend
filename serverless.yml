@@ -1,13 +1,9 @@
 service: url-shortener
-frameworkVersion: '3'
-
-plugins:
-  - serverless-offline
-  - serverless-dotenv-plugin
+frameworkVersion: '4'
 
 provider:
   name: aws
-  runtime: nodejs18.x
+  runtime: nodejs24.x
   stage: ${opt:stage, 'dev'}
   region: ${opt:region, 'ap-south-1'}
   stackName: url-shortener-${self:provider.stage}
