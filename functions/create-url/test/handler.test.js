@@ -73,10 +73,12 @@ describe("create-url handler (POST /shorten)", () => {
     expect(parseBody(res)).to.have.property("error");
   });
 
-  it("returns 400 for a body that is not valid JSON", async () => {
+  // Regression test for Bug 4: this response used to have no CORS headers.
+  it("returns 400 with CORS headers for a body that is not valid JSON", async () => {
     const res = await main({ body: "{not json" });
 
     expect(res.statusCode).to.equal(400);
+    expectCors(res);
     expect(parseBody(res).error).to.equal("Invalid JSON body");
   });
 
@@ -89,12 +91,6 @@ describe("create-url handler (POST /shorten)", () => {
 
   // Known bugs from CODE_REVIEW.md. Un-skip each one when it's fixed.
   describe("known bugs", () => {
-    it.skip("Bug 4: the invalid-JSON 400 response includes CORS headers", async () => {
-      const res = await main({ body: "{not json" });
-
-      expectCors(res);
-    });
-
     it.skip("Bug 5: a null body returns 400, not 500", async () => {
       const res = await main({ body: "null" });
 
