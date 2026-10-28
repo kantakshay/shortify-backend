@@ -129,27 +129,28 @@ describe("create-url service: createShortUrl", () => {
       expect(savedItems()).to.have.lengthOf(0);
     });
 
-    it("throws a 400 for a non-HTTP URL", async () => {
+    // Regression test for Bug 6: this message used to be replaced by "Invalid URL format".
+    it("throws a 400 with its own message for a non-HTTP URL", async () => {
       const err = await catchError(createShortUrl({ url: "ftp://example.com/file" }));
 
       expect(err.statusCode).to.equal(400);
+      expect(err.message).to.equal("Only HTTP/HTTPS URLs are allowed");
       expect(savedItems()).to.have.lengthOf(0);
     });
-  });
 
-  // Known bugs from CODE_REVIEW.md. Un-skip each one when it's fixed.
-  describe("known bugs", () => {
-    it.skip("Bug 6: a missing url throws 'URL is required'", async () => {
-      const err = await catchError(createShortUrl({}));
+    // Regression tests for Bug 6: a missing url used to fail as "Invalid URL format".
+    [
+      ["missing", {}],
+      ["an empty string", { url: "" }],
+      ["null", { url: null }],
+    ].forEach(([label, body]) => {
+      it(`throws a 400 'URL is required' when the url is ${label}`, async () => {
+        const err = await catchError(createShortUrl(body));
 
-      expect(err.statusCode).to.equal(400);
-      expect(err.message).to.equal("URL is required");
-    });
-
-    it.skip("Bug 6: a non-HTTP URL throws 'Only HTTP/HTTPS URLs are allowed'", async () => {
-      const err = await catchError(createShortUrl({ url: "ftp://example.com/file" }));
-
-      expect(err.message).to.equal("Only HTTP/HTTPS URLs are allowed");
+        expect(err.statusCode).to.equal(400);
+        expect(err.message).to.equal("URL is required");
+        expect(savedItems()).to.have.lengthOf(0);
+      });
     });
   });
 });

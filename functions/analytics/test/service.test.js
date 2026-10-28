@@ -76,17 +76,16 @@ describe("analytics service: getAnalytics", () => {
     expect(err.statusCode).to.be.undefined;
   });
 
-  // Known bugs from CODE_REVIEW.md. Un-skip each one when it's fixed.
-  describe("known bugs", () => {
-    it.skip("Bug 7: looks up codes in lowercase to match stored custom codes", async () => {
-      ddbMock.on(GetCommand).resolves({
-        Item: { short_code: "mycode", long_url: "https://example.com" },
-      });
-
-      await getAnalytics("MyCode");
-
-      const input = ddbMock.commandCalls(GetCommand)[0].args[0].input;
-      expect(input.Key).to.deep.equal({ short_code: "mycode" });
+  // Regression test for Bug 7: /analytics/MyCode used to 404 because codes are stored lowercase.
+  it("looks up mixed-case codes in lowercase", async () => {
+    ddbMock.on(GetCommand).resolves({
+      Item: { short_code: "mycode", long_url: "https://example.com", clicks: 2 },
     });
+
+    const stats = await getAnalytics("MyCode");
+
+    expect(stats.short_code).to.equal("mycode");
+    const input = ddbMock.commandCalls(GetCommand)[0].args[0].input;
+    expect(input.Key).to.deep.equal({ short_code: "mycode" });
   });
 });
