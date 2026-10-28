@@ -89,12 +89,22 @@ describe("create-url handler (POST /shorten)", () => {
     expect(ddbMock.commandCalls(PutCommand)).to.have.lengthOf(0);
   });
 
-  // Known bugs from CODE_REVIEW.md. Un-skip each one when it's fixed.
-  describe("known bugs", () => {
-    it.skip("Bug 5: a null body returns 400, not 500", async () => {
-      const res = await main({ body: "null" });
+  // Regression tests for Bug 5: a null body used to crash the service with a 500.
+  const nonObjectBodies = [
+    ["null", "null"],
+    ["an array", "[]"],
+    ["a string", '"https://example.com"'],
+    ["a number", "42"],
+  ];
+
+  nonObjectBodies.forEach(([label, rawBody]) => {
+    it(`returns 400 when the body is ${label}`, async () => {
+      const res = await main({ body: rawBody });
 
       expect(res.statusCode).to.equal(400);
+      expectCors(res);
+      expect(parseBody(res).error).to.equal("Request body must be a JSON object");
+      expect(ddbMock.commandCalls(PutCommand)).to.have.lengthOf(0);
     });
   });
 });
