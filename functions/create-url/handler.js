@@ -12,6 +12,9 @@ exports.main = async (event) => {
       statusCode: 400,
       headers: {
         "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "*",
+        "Access-Control-Allow-Methods": "*"
       },
       body: JSON.stringify({ error: "Invalid JSON body" }),
     };
