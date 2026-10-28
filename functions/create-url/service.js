@@ -86,36 +86,37 @@ const validateCustomCode = (customCode) => {
   // Normalize (important)
   return cleaned.toLowerCase();
 };
-// Main service
+// Validates the URL and returns it normalized
 const validateUrl = (url) => {
+  let parsed;
   try {
-    const parsed = new URL(url);
-
-    // Allow only http/https
-    if (!["http:", "https:"].includes(parsed.protocol)) {
-      const err = new Error("Only HTTP/HTTPS URLs are allowed");
-      err.statusCode = 400;
-      throw err;
-    }
-
-    return parsed.href; // normalized URL
+    parsed = new URL(url);
   } catch (error) {
     const err = new Error("Invalid URL format");
     err.statusCode = 400;
     throw err;
   }
+
+  // Allow only http/https
+  if (!["http:", "https:"].includes(parsed.protocol)) {
+    const err = new Error("Only HTTP/HTTPS URLs are allowed");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  return parsed.href; // normalized URL
 };
 
 // Main service
 exports.createShortUrl = async ({ url , customCode}) => {
-
-  url = validateUrl(url);
 
   if (!url) {
     const err = new Error("URL is required");
     err.statusCode = 400;
     throw err;
   }
+
+  url = validateUrl(url);
 
   const shortCode = await generateUniqueCode(url, customCode);
 

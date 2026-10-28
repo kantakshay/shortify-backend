@@ -84,17 +84,19 @@ describe("redirect-url service: getLongUrl", () => {
     expect(err.statusCode).to.be.undefined;
   });
 
-  // Known bugs from CODE_REVIEW.md. Un-skip each one when it's fixed.
-  describe("known bugs", () => {
-    it.skip("Bug 7: looks up codes in lowercase to match stored custom codes", async () => {
-      ddbMock.on(GetCommand).resolves({
-        Item: { short_code: "mycode", long_url: "https://example.com" },
-      });
-
-      await getLongUrl("MyCode");
-
-      const input = ddbMock.commandCalls(GetCommand)[0].args[0].input;
-      expect(input.Key).to.deep.equal({ short_code: "mycode" });
+  // Regression test for Bug 7: /MyCode used to 404 because codes are stored lowercase.
+  it("looks up and counts mixed-case codes in lowercase", async () => {
+    ddbMock.on(GetCommand).resolves({
+      Item: { short_code: "mycode", long_url: "https://example.com" },
     });
+    ddbMock.on(UpdateCommand).resolves({});
+
+    const longUrl = await getLongUrl("MyCode");
+
+    expect(longUrl).to.equal("https://example.com");
+    const getInput = ddbMock.commandCalls(GetCommand)[0].args[0].input;
+    expect(getInput.Key).to.deep.equal({ short_code: "mycode" });
+    const updateInput = ddbMock.commandCalls(UpdateCommand)[0].args[0].input;
+    expect(updateInput.Key).to.deep.equal({ short_code: "mycode" });
   });
 });
