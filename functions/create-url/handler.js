@@ -20,6 +20,20 @@ exports.main = async (event) => {
     };
   }
 
+  // null, arrays, strings and numbers are valid JSON but not a request object
+  if (body === null || typeof body !== "object" || Array.isArray(body)) {
+    return {
+      statusCode: 400,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "*",
+        "Access-Control-Allow-Methods": "*"
+      },
+      body: JSON.stringify({ error: "Request body must be a JSON object" }),
+    };
+  }
+
   try {
 
     const result = await createShortUrl(body);
