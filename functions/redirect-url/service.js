@@ -7,14 +7,17 @@ exports.getLongUrl = async (shortCode) => {
     throw err;
   }
 
-  const data = await fetchUrl(shortCode);
+  // Codes are stored lowercase (custom codes are lowercased on create)
+  const code = shortCode.toLowerCase();
+
+  const data = await fetchUrl(code);
   if (!data || !data.long_url) {
     const err = new Error("URL not found");
     err.statusCode = 404;
     throw err;
   }
 
-  await incrementClicks(shortCode);
+  await incrementClicks(code);
 
   return data.long_url;
 };

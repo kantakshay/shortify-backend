@@ -8,7 +8,8 @@ const getAnalytics = async (shortCode) => {
     throw err;
   }
 
-  const data = await fetchUrl(shortCode);
+  // Codes are stored lowercase (custom codes are lowercased on create)
+  const data = await fetchUrl(shortCode.toLowerCase());
 
   if (!data) {
     const err = new Error("URL not found");
