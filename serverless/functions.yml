@@ -12,6 +12,7 @@ functions:
         - 'functions/create-url/**'
         - '!functions/create-url/test/**'
         - 'shared/**'
+        - '!shared/test/**'
         - 'node_modules/**'
         - 'package.json'
 
@@ -27,6 +28,7 @@ functions:
         - 'functions/redirect-url/**'
         - '!functions/redirect-url/test/**'
         - 'shared/**'
+        - '!shared/test/**'
         - 'node_modules/**'
         - 'package.json'
 
@@ -42,5 +44,6 @@ functions:
         - 'functions/analytics/**'
         - '!functions/analytics/test/**'
         - 'shared/**'
+        - '!shared/test/**'
         - 'node_modules/**'
         - 'package.json'

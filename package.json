@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "mocha \"functions/*/test/*.test.js\"",
+    "test": "mocha \"functions/*/test/*.test.js\" \"shared/test/*.test.js\"",
+    "test:shared": "mocha \"shared/test/*.test.js\"",
     "test:create-url": "mocha \"functions/create-url/test/*.test.js\"",
     "test:redirect-url": "mocha \"functions/redirect-url/test/*.test.js\"",
     "test:analytics": "mocha \"functions/analytics/test/*.test.js\""

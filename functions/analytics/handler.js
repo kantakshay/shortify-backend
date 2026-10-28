@@ -1,5 +1,5 @@
 const { getAnalytics } = require("./service");
-
+const { jsonResponse, errorToResponse } = require("../../shared/response");
 
 exports.main = async (event) => {
   try {
@@ -7,28 +7,10 @@ exports.main = async (event) => {
 
     const data = await getAnalytics(shortCode);
 
-    return {
-      statusCode: 200,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "*",
-        "Access-Control-Allow-Methods": "*"
-      },
-      body: JSON.stringify(data),
-    };
+    return jsonResponse(200, data);
+  } catch (err) {
+    console.error("Analytics Error:", err);
 
-  } catch (error) {
-    console.error("Analytics Error:", error);
-
-    return {
-      statusCode: error.statusCode || 500,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "*",
-        "Access-Control-Allow-Methods": "*"
-      },
-      // Only expected errors (with a statusCode) show their message to the caller
-      body: JSON.stringify({ error: error.statusCode ? error.message : "Internal Server Error" }),
-    };
+    return errorToResponse(err);
   }
 };

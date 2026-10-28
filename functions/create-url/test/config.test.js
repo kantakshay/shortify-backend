@@ -30,6 +30,15 @@ describe("create-url config (serverless/functions.yml)", () => {
     events.forEach(({ http }) => expect(http.cors).to.equal(true));
   });
 
+  // Lambda zips get the shared code, but never test files.
+  it("packages shared code without any tests", () => {
+    const { patterns } = config.functions.createUrl.package;
+
+    expect(patterns).to.include("shared/**");
+    expect(patterns.indexOf("!functions/create-url/test/**")).to.be.above(patterns.indexOf("functions/create-url/**"));
+    expect(patterns.indexOf("!shared/test/**")).to.be.above(patterns.indexOf("shared/**"));
+  });
+
   // Security: the Lambda role must not reach every DynamoDB table in the account.
   it("allows dynamodb:PutItem on the URL table only", () => {
     const statements = iam.statements.filter((s) => s.Action.includes("dynamodb:PutItem"));

@@ -25,6 +25,15 @@ describe("analytics config (serverless/functions.yml)", () => {
     events.forEach(({ http }) => expect(http.cors).to.equal(true));
   });
 
+  // Lambda zips get the shared code, but never test files.
+  it("packages shared code without any tests", () => {
+    const { patterns } = config.functions.analytics.package;
+
+    expect(patterns).to.include("shared/**");
+    expect(patterns.indexOf("!functions/analytics/test/**")).to.be.above(patterns.indexOf("functions/analytics/**"));
+    expect(patterns.indexOf("!shared/test/**")).to.be.above(patterns.indexOf("shared/**"));
+  });
+
   // Security: the Lambda role must not reach every DynamoDB table in the account.
   it("allows dynamodb:GetItem on the URL table only", () => {
     const statements = iam.statements.filter((s) => s.Action.includes("dynamodb:GetItem"));
