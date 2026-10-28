@@ -6,6 +6,7 @@ functions:
       - http:
           path: /shorten
           method: post
+          cors: true
     package:
       patterns:
         - 'functions/create-url/**'
@@ -20,6 +21,7 @@ functions:
       - http:
           path: /{short_code}
           method: get
+          cors: true
     package:
       patterns:
         - 'functions/redirect-url/**'
@@ -34,6 +36,7 @@ functions:
       - http:
           path: /analytics/{short_code}
           method: get
+          cors: true
     package:
       patterns:
         - 'functions/analytics/**'
