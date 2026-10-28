@@ -1,6 +1,6 @@
 
 const { DynamoDBClient } = require("@aws-sdk/client-dynamodb");
-const { DynamoDBDocumentClient, GetCommand } = require("@aws-sdk/lib-dynamodb");
+const { DynamoDBDocumentClient, GetCommand ,UpdateCommand} = require("@aws-sdk/lib-dynamodb");
 
 const stage = process.env.STAGE ?? "local";
 const TABLE_NAME = process.env.TABLE_NAME;
@@ -29,4 +29,26 @@ const dynamo = DynamoDBDocumentClient.from(client);
     return result.Item || null;
   }
 
-  module.exports= fetchUrl
+ const incrementClicks = async (shortCode) => {
+  try {
+    await dynamo.send(
+      new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: { short_code: shortCode },
+
+        UpdateExpression: "SET clicks = if_not_exists(clicks, :zero) + :inc",
+        ConditionExpression: "attribute_exists(short_code)",
+
+        ExpressionAttributeValues: {
+          ":inc": 1,
+          ":zero": 0,
+        },
+      })
+    );
+  } catch (err) {
+    console.error("[DynamoDB ERROR - incrementClicks]", err);
+    // Do NOT throw → don't break redirect flow
+  }
+};
+
+  module.exports= {incrementClicks, fetchUrl}

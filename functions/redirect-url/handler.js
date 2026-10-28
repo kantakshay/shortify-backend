@@ -9,6 +9,9 @@ exports.main = async (event) => {
     return {
       statusCode: 302,
       headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "*",
+        "Access-Control-Allow-Methods": "*",
         Location: longUrl,
       },
     };
@@ -18,6 +21,11 @@ exports.main = async (event) => {
 
     return {
       statusCode: error.statusCode || 500,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Headers": "*",
+        "Access-Control-Allow-Methods": "*"
+      },
       body: JSON.stringify({ error: error.message || "Internal Server Error" }),
     };
   }
