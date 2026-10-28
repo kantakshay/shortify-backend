@@ -1,3 +1,13 @@
 dev:
   STAGE: dev
   TABLE_NAME: url-shortener-dev
+  # Public address of this API, used to build short_url. Filled in by
+  # CloudFormation; replace with a custom domain (e.g. https://sho.rt) later.
+  BASE_URL:
+    Fn::Join:
+      - ""
+      - - "https://"
+        - Ref: ApiGatewayRestApi
+        - ".execute-api."
+        - Ref: AWS::Region
+        - ".amazonaws.com/dev"

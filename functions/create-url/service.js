@@ -1,6 +1,14 @@
 const crypto = require("crypto");
 const saveUrl = require("./dynamoDB");
 
+// Public address of the API (no trailing slash), used to build short_url
+const BASE_URL = (process.env.BASE_URL || "").replace(/\/+$/, "");
+
+// Fail at cold start rather than return broken links
+if (!BASE_URL) {
+  throw new Error("BASE_URL is not defined");
+}
+
 // Generate short code
 function generateShortCode() {
   return crypto.randomBytes(4).toString("hex");
@@ -122,6 +130,6 @@ exports.createShortUrl = async ({ url , customCode}) => {
 
   return {
     short_code: shortCode,
-    short_url: shortCode, // domain can be added later
+    short_url: `${BASE_URL}/${shortCode}`,
   };
 };

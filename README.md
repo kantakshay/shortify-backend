@@ -90,15 +90,19 @@ POST /shorten
 
 ```json
 {
-  "url": "https://example.com"
+  "url": "https://example.com",
+  "customCode": "promo2026"
 }
 ```
 
-**Response:**
+`customCode` is optional (3–20 letters or numbers, stored in lowercase).
+
+**Response:** `201 Created`
 
 ```json
 {
-  "short_url": "https://your-domain/abc123"
+  "short_code": "promo2026",
+  "short_url": "https://<api-id>.execute-api.ap-south-1.amazonaws.com/dev/promo2026"
 }
 ```
 

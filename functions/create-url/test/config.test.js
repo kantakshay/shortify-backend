@@ -16,6 +16,9 @@ const workflow = yaml.load(
 const testWorkflow = yaml.load(
   fs.readFileSync(path.join(__dirname, "../../../.github/workflows/test.yml"), "utf8")
 );
+const environment = yaml.load(
+  fs.readFileSync(path.join(__dirname, "../../../serverless/environment.yml"), "utf8")
+);
 
 describe("create-url config (serverless/functions.yml)", () => {
   const { events } = config.functions.createUrl;
@@ -67,6 +70,22 @@ describe("create-url config (serverless/functions.yml)", () => {
 
     expect(testIndex).to.be.at.least(0);
     expect(testIndex).to.be.below(deployIndex);
+  });
+
+  // short_url is built from BASE_URL, which must be this stage's API Gateway address.
+  it("sets BASE_URL to the dev API Gateway URL", () => {
+    expect(environment.dev.BASE_URL).to.deep.equal({
+      "Fn::Join": [
+        "",
+        [
+          "https://",
+          { Ref: "ApiGatewayRestApi" },
+          ".execute-api.",
+          { Ref: "AWS::Region" },
+          ".amazonaws.com/dev",
+        ],
+      ],
+    });
   });
 
   it("runs the unit tests on pull requests", () => {

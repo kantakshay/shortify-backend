@@ -25,12 +25,12 @@ describe("create-url handler (POST /shorten)", () => {
 
   silenceConsole();
 
-  it("returns 200 with a JSON body and CORS headers", async () => {
+  it("returns 201 Created with a JSON body and CORS headers", async () => {
     ddbMock.on(PutCommand).resolves({});
 
     const res = await post({ url: "https://example.com" });
 
-    expect(res.statusCode).to.equal(200);
+    expect(res.statusCode).to.equal(201);
     expect(res.headers["Content-Type"]).to.equal("application/json");
     expectCors(res);
     expect(parseBody(res)).to.have.keys("short_code", "short_url");
