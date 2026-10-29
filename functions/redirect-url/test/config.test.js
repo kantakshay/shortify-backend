@@ -6,8 +6,8 @@ const yaml = require("js-yaml");
 const config = yaml.load(
   fs.readFileSync(path.join(__dirname, "../../../serverless/functions.yml"), "utf8"),
 );
-const iam = yaml.load(
-  fs.readFileSync(path.join(__dirname, "../../../serverless/iam-resources.yml"), "utf8"),
+const serverlessConfig = yaml.load(
+  fs.readFileSync(path.join(__dirname, "../../../serverless.yml"), "utf8"),
 );
 const URL_TABLE_ARN = { "Fn::GetAtt": ["UrlTable", "Arn"] };
 
@@ -34,13 +34,21 @@ describe("redirect-url config (serverless/functions.yml)", () => {
     expect(patterns.indexOf("!shared/test/**")).to.be.above(patterns.indexOf("shared/**"));
   });
 
-  // Security: the Lambda role must not reach every DynamoDB table in the account.
-  ["dynamodb:GetItem", "dynamodb:UpdateItem"].forEach((action) => {
-    it(`allows ${action} on the URL table only`, () => {
-      const statements = iam.statements.filter((s) => s.Action.includes(action));
+  // Security: this Lambda has its own IAM role, so it can't use the others' permissions.
+  it("runs with its own IAM role", () => {
+    expect(serverlessConfig.provider.iam.role).to.deep.equal({ mode: "perFunction" });
+  });
 
-      expect(statements).to.not.be.empty;
-      statements.forEach((s) => expect(s.Resource).to.deep.equal(URL_TABLE_ARN));
-    });
+  // Security: least privilege, it reads the link and updates its click counter, on the URL table only.
+  it("may only GetItem and UpdateItem on the URL table", () => {
+    const { statements } = config.functions.redirect.iam.role;
+
+    expect(statements).to.deep.equal([
+      {
+        Effect: "Allow",
+        Action: ["dynamodb:GetItem", "dynamodb:UpdateItem"],
+        Resource: URL_TABLE_ARN,
+      },
+    ]);
   });
 });

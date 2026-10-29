@@ -1,9 +1,0 @@
-statements:
-  - Effect: Allow
-    Action:
-      - dynamodb:PutItem
-      - dynamodb:GetItem
-      - dynamodb:UpdateItem
-    # Only the URL table, not every table in the account
-    Resource:
-      Fn::GetAtt: [UrlTable, Arn]
