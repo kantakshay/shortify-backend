@@ -12,7 +12,9 @@ provider:
 
   iam:
     role:
-      statements: ${file(./serverless/iam-resources.yml):statements}
+      # Every function gets its own IAM role with only the permissions it needs,
+      # set in serverless/functions.yml. Log permissions are added automatically.
+      mode: perFunction
 
 custom: ${file(./serverless/custom.yml):${self:provider.stage}}
 

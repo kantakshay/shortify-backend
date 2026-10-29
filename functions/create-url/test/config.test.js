@@ -6,8 +6,8 @@ const yaml = require("js-yaml");
 const config = yaml.load(
   fs.readFileSync(path.join(__dirname, "../../../serverless/functions.yml"), "utf8"),
 );
-const iam = yaml.load(
-  fs.readFileSync(path.join(__dirname, "../../../serverless/iam-resources.yml"), "utf8"),
+const serverlessConfig = yaml.load(
+  fs.readFileSync(path.join(__dirname, "../../../serverless.yml"), "utf8"),
 );
 const URL_TABLE_ARN = { "Fn::GetAtt": ["UrlTable", "Arn"] };
 const workflow = yaml.load(
@@ -44,12 +44,18 @@ describe("create-url config (serverless/functions.yml)", () => {
     expect(patterns.indexOf("!shared/test/**")).to.be.above(patterns.indexOf("shared/**"));
   });
 
-  // Security: the Lambda role must not reach every DynamoDB table in the account.
-  it("allows dynamodb:PutItem on the URL table only", () => {
-    const statements = iam.statements.filter((s) => s.Action.includes("dynamodb:PutItem"));
+  // Security: this Lambda has its own IAM role, so it can't use the others' permissions.
+  it("runs with its own IAM role", () => {
+    expect(serverlessConfig.provider.iam.role).to.deep.equal({ mode: "perFunction" });
+  });
 
-    expect(statements).to.not.be.empty;
-    statements.forEach((s) => expect(s.Resource).to.deep.equal(URL_TABLE_ARN));
+  // Security: least privilege, it only writes new links, on the URL table only.
+  it("may only PutItem on the URL table", () => {
+    const { statements } = config.functions.createUrl.iam.role;
+
+    expect(statements).to.deep.equal([
+      { Effect: "Allow", Action: ["dynamodb:PutItem"], Resource: URL_TABLE_ARN },
+    ]);
   });
 
   // Security: /shorten is public, so the dev stage is throttled after every deploy.

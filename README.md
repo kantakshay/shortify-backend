@@ -41,7 +41,6 @@ shortify-backend/
 ├── serverless/               # Modular configs
 │   ├── environment.yml
 │   ├── custom.yml
-│   ├── iam-resources.yml
 │   ├── functions.yml
 │   ├── dynamodb-resources.yml
 │

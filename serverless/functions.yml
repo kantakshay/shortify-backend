@@ -1,6 +1,15 @@
 functions:
   createUrl:
     handler: functions/create-url/handler.main
+    iam:
+      role:
+        statements:
+          # Write new links only
+          - Effect: Allow
+            Action:
+              - dynamodb:PutItem
+            Resource:
+              Fn::GetAtt: [UrlTable, Arn]
     events:
       - http:
           path: /shorten
@@ -17,6 +26,16 @@ functions:
 
   redirect:
     handler: functions/redirect-url/handler.main
+    iam:
+      role:
+        statements:
+          # Look up the link and update its click counter
+          - Effect: Allow
+            Action:
+              - dynamodb:GetItem
+              - dynamodb:UpdateItem
+            Resource:
+              Fn::GetAtt: [UrlTable, Arn]
     events:
       - http:
           path: /{short_code}
@@ -33,6 +52,15 @@ functions:
 
   analytics:
     handler: functions/analytics/handler.main
+    iam:
+      role:
+        statements:
+          # Read only
+          - Effect: Allow
+            Action:
+              - dynamodb:GetItem
+            Resource:
+              Fn::GetAtt: [UrlTable, Arn]
     events:
       - http:
           path: /analytics/{short_code}
