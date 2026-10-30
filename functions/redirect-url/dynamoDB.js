@@ -12,6 +12,7 @@ const fetchUrl = async (shortCode) => {
   return result.Item || null;
 };
 
+// Counts the click and records when it happened, in one write
 const incrementClicks = async (shortCode) => {
   try {
     await dynamo.send(
@@ -19,12 +20,14 @@ const incrementClicks = async (shortCode) => {
         TableName: TABLE_NAME,
         Key: { short_code: shortCode },
 
-        UpdateExpression: "SET clicks = if_not_exists(clicks, :zero) + :inc",
+        UpdateExpression:
+          "SET clicks = if_not_exists(clicks, :zero) + :inc, last_clicked_at = :now",
         ConditionExpression: "attribute_exists(short_code)",
 
         ExpressionAttributeValues: {
           ":inc": 1,
           ":zero": 0,
+          ":now": new Date().toISOString(),
         },
       }),
     );
