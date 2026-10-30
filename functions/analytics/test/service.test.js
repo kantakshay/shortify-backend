@@ -107,7 +107,7 @@ describe("analytics service: expired links", () => {
 
   const inSeconds = (offset) => Math.floor(Date.now() / 1000) + offset;
 
-  // Expiry: TTL can take a day or two to delete the item, so analytics checks itself.
+  // Expiry: expired links stay in the table, so analytics must check the date itself.
   it("throws a 404 for an expired link", async () => {
     ddbMock.on(GetCommand).resolves({
       Item: { short_code: "sale", long_url: "https://example.com", expires_at: inSeconds(-60) },

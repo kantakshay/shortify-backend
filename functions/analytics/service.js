@@ -11,7 +11,8 @@ const getAnalytics = async (shortCode) => {
   // Codes are stored lowercase (custom codes are lowercased on create)
   const data = await fetchUrl(shortCode.toLowerCase());
 
-  // An expired link counts as gone, even if TTL hasn't deleted it yet
+  // Expired links are never deleted (so their codes can't be reused); they
+  // stay in the table, so treat them as not found here
   if (!data || isExpired(data)) {
     const err = new Error("URL not found");
     err.statusCode = 404;

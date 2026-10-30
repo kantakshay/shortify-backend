@@ -12,7 +12,8 @@ exports.getLongUrl = async (shortCode) => {
   const code = shortCode.toLowerCase();
 
   const data = await fetchUrl(code);
-  // An expired link counts as gone, even if TTL hasn't deleted it yet
+  // Expired links are never deleted (so their codes can't be reused); they
+  // stay in the table, so treat them as not found here
   if (!data || !data.long_url || isExpired(data)) {
     const err = new Error("URL not found");
     err.statusCode = 404;
