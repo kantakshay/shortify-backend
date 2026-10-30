@@ -214,3 +214,81 @@ describe("create-url service: BASE_URL", () => {
     expect(() => loadWithBaseUrl(undefined)).to.throw("BASE_URL is not defined");
   });
 });
+
+describe("create-url service: expiresAt", () => {
+  let ddbMock;
+
+  before(() => {
+    ddbMock = mockClient(DynamoDBDocumentClient);
+  });
+
+  beforeEach(() => {
+    ddbMock.reset();
+    ddbMock.on(PutCommand).resolves({});
+  });
+
+  after(() => {
+    ddbMock.restore();
+  });
+
+  silenceConsole();
+
+  const savedItems = () => ddbMock.commandCalls(PutCommand).map((call) => call.args[0].input.Item);
+  const inOneDay = () => new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+  it("stores no expiry when expiresAt is not given", async () => {
+    const result = await createShortUrl({ url: "https://example.com" });
+
+    expect(savedItems()[0]).to.not.have.property("expires_at");
+    expect(result).to.not.have.property("expires_at");
+  });
+
+  it("treats a null expiresAt like no expiry", async () => {
+    const result = await createShortUrl({ url: "https://example.com", expiresAt: null });
+
+    expect(savedItems()[0]).to.not.have.property("expires_at");
+    expect(result).to.not.have.property("expires_at");
+  });
+
+  it("stores expiresAt in epoch seconds and returns it as an ISO date", async () => {
+    const expiresAt = inOneDay();
+    const seconds = Math.floor(Date.parse(expiresAt) / 1000);
+
+    const result = await createShortUrl({ url: "https://example.com", expiresAt });
+
+    expect(savedItems()[0].expires_at).to.equal(seconds);
+    expect(result.expires_at).to.equal(new Date(seconds * 1000).toISOString());
+  });
+
+  it("applies the expiry to custom codes too", async () => {
+    const expiresAt = inOneDay();
+
+    const result = await createShortUrl({
+      url: "https://example.com",
+      customCode: "sale",
+      expiresAt,
+    });
+
+    expect(savedItems()[0]).to.include({
+      short_code: "sale",
+      expires_at: Math.floor(Date.parse(expiresAt) / 1000),
+    });
+    expect(result.short_code).to.equal("sale");
+  });
+
+  const invalidExpiries = [
+    ["is a number", 1798761599, "expiresAt must be a date string, e.g. 2026-12-31T23:59:59Z"],
+    ["is not a date", "next friday", "expiresAt must be a date string, e.g. 2026-12-31T23:59:59Z"],
+    ["is in the past", "2020-01-01T00:00:00Z", "expiresAt must be in the future"],
+  ];
+
+  invalidExpiries.forEach(([label, expiresAt, message]) => {
+    it(`throws a 400 when expiresAt ${label}`, async () => {
+      const err = await catchError(createShortUrl({ url: "https://example.com", expiresAt }));
+
+      expect(err.statusCode).to.equal(400);
+      expect(err.message).to.equal(message);
+      expect(savedItems()).to.have.lengthOf(0);
+    });
+  });
+});

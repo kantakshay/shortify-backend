@@ -90,20 +90,25 @@ POST /shorten
 ```json
 {
   "url": "https://example.com",
-  "customCode": "promo2026"
+  "customCode": "promo2026",
+  "expiresAt": "2026-12-31T23:59:59Z"
 }
 ```
 
-`customCode` is optional (3–20 letters or numbers, stored in lowercase).
+- `customCode` is optional (3–20 letters or numbers, stored in lowercase).
+- `expiresAt` is optional: a future date and time. After it, the link returns `404`. Without it, the link never expires. A short code is never reused, even after its link expires.
 
 **Response:** `201 Created`
 
 ```json
 {
   "short_code": "promo2026",
-  "short_url": "https://<api-id>.execute-api.ap-south-1.amazonaws.com/dev/promo2026"
+  "short_url": "https://<api-id>.execute-api.ap-south-1.amazonaws.com/dev/promo2026",
+  "expires_at": "2026-12-31T23:59:59.000Z"
 }
 ```
+
+`expires_at` is only included when the link has an expiry.
 
 ---
 
