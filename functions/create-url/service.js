@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const saveUrl = require("./dynamoDB");
+const { nowInSeconds } = require("../../shared/expiry");
 
 // Public address of the API (no trailing slash), used to build short_url
 const BASE_URL = (process.env.BASE_URL || "").replace(/\/+$/, "");
@@ -18,11 +19,11 @@ function generateShortCode() {
 const MAX_ATTEMPTS = 5;
 
 // Saves the URL under the caller's custom code; 409 if the code is taken
-async function saveCustomCode(url, customCode) {
+async function saveCustomCode(url, customCode, expiresAt) {
   const code = validateCustomCode(customCode);
 
   try {
-    await saveUrl(code, url);
+    await saveUrl(code, url, expiresAt);
     return code;
   } catch (err) {
     if (err.name === "ConditionalCheckFailedException") {
@@ -35,12 +36,12 @@ async function saveCustomCode(url, customCode) {
 }
 
 // Saves the URL under a random code, trying a new code on each collision
-async function saveRandomCode(url) {
+async function saveRandomCode(url, expiresAt) {
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const code = generateShortCode();
 
     try {
-      await saveUrl(code, url);
+      await saveUrl(code, url, expiresAt);
       return code;
     } catch (err) {
       // Anything other than "code already used" is a real failure
@@ -113,8 +114,32 @@ const validateUrl = (url) => {
   return parsed.href; // normalized URL
 };
 
+// Validates the optional expiresAt (a date string such as
+// "2026-12-31T23:59:59Z") and returns it in epoch seconds, or undefined.
+const validateExpiresAt = (expiresAt) => {
+  if (expiresAt === undefined || expiresAt === null) {
+    return undefined;
+  }
+
+  const time = typeof expiresAt === "string" ? Date.parse(expiresAt) : NaN;
+  if (Number.isNaN(time)) {
+    const err = new Error("expiresAt must be a date string, e.g. 2026-12-31T23:59:59Z");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const seconds = Math.floor(time / 1000);
+  if (seconds <= nowInSeconds()) {
+    const err = new Error("expiresAt must be in the future");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  return seconds;
+};
+
 // Main service
-exports.createShortUrl = async ({ url, customCode }) => {
+exports.createShortUrl = async ({ url, customCode, expiresAt }) => {
   if (!url) {
     const err = new Error("URL is required");
     err.statusCode = 400;
@@ -122,11 +147,17 @@ exports.createShortUrl = async ({ url, customCode }) => {
   }
 
   url = validateUrl(url);
+  const expiresAtSeconds = validateExpiresAt(expiresAt);
 
-  const shortCode = customCode ? await saveCustomCode(url, customCode) : await saveRandomCode(url);
+  const shortCode = customCode
+    ? await saveCustomCode(url, customCode, expiresAtSeconds)
+    : await saveRandomCode(url, expiresAtSeconds);
 
   return {
     short_code: shortCode,
     short_url: `${BASE_URL}/${shortCode}`,
+    ...(expiresAtSeconds !== undefined && {
+      expires_at: new Date(expiresAtSeconds * 1000).toISOString(),
+    }),
   };
 };
