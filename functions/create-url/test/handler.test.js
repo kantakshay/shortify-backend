@@ -138,3 +138,41 @@ describe("create-url handler (POST /shorten)", () => {
     });
   });
 });
+
+describe("create-url handler: expiresAt", () => {
+  let ddbMock;
+
+  before(() => {
+    ddbMock = mockClient(DynamoDBDocumentClient);
+  });
+
+  beforeEach(() => {
+    ddbMock.reset();
+  });
+
+  after(() => {
+    ddbMock.restore();
+  });
+
+  silenceConsole();
+
+  it("returns the expiry in the 201 response", async () => {
+    ddbMock.on(PutCommand).resolves({});
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+    const res = await post({ url: "https://example.com", expiresAt });
+
+    expect(res.statusCode).to.equal(201);
+    const expected = new Date(Math.floor(Date.parse(expiresAt) / 1000) * 1000).toISOString();
+    expect(parseBody(res).expires_at).to.equal(expected);
+  });
+
+  it("returns 400 for an expiry in the past", async () => {
+    const res = await post({ url: "https://example.com", expiresAt: "2020-01-01T00:00:00Z" });
+
+    expect(res.statusCode).to.equal(400);
+    expectCors(res);
+    expect(parseBody(res).error).to.equal("expiresAt must be in the future");
+    expect(ddbMock.commandCalls(PutCommand)).to.have.lengthOf(0);
+  });
+});

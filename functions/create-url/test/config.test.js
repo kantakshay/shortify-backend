@@ -105,3 +105,15 @@ describe("create-url config (serverless/functions.yml)", () => {
     ]);
   });
 });
+
+describe("url table config (serverless/dynamodb-resources.yml)", () => {
+  const resources = yaml.load(
+    fs.readFileSync(path.join(__dirname, "../../../serverless/dynamodb-resources.yml"), "utf8"),
+  );
+
+  // Security: TTL would delete expired links and free their codes for reuse,
+  // so it stays off and expired links are kept as retired records.
+  it("does not enable TTL", () => {
+    expect(resources.Resources.UrlTable.Properties).to.not.have.property("TimeToLiveSpecification");
+  });
+});

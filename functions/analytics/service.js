@@ -1,4 +1,5 @@
 const { fetchUrl } = require("./dynamoDB");
+const { isExpired } = require("../../shared/expiry");
 
 const getAnalytics = async (shortCode) => {
   if (!shortCode) {
@@ -10,7 +11,9 @@ const getAnalytics = async (shortCode) => {
   // Codes are stored lowercase (custom codes are lowercased on create)
   const data = await fetchUrl(shortCode.toLowerCase());
 
-  if (!data) {
+  // Expired links are never deleted (so their codes can't be reused); they
+  // stay in the table, so treat them as not found here
+  if (!data || isExpired(data)) {
     const err = new Error("URL not found");
     err.statusCode = 404;
     throw err;
@@ -20,6 +23,9 @@ const getAnalytics = async (shortCode) => {
     short_code: data.short_code,
     long_url: data.long_url,
     clicks: data.clicks || 0,
+    ...(typeof data.expires_at === "number" && {
+      expires_at: new Date(data.expires_at * 1000).toISOString(),
+    }),
   };
 };
 

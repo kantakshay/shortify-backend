@@ -89,3 +89,54 @@ describe("analytics service: getAnalytics", () => {
     expect(input.Key).to.deep.equal({ short_code: "mycode" });
   });
 });
+
+describe("analytics service: expired links", () => {
+  let ddbMock;
+
+  before(() => {
+    ddbMock = mockClient(DynamoDBDocumentClient);
+  });
+
+  beforeEach(() => {
+    ddbMock.reset();
+  });
+
+  after(() => {
+    ddbMock.restore();
+  });
+
+  const inSeconds = (offset) => Math.floor(Date.now() / 1000) + offset;
+
+  // Expiry: expired links stay in the table, so analytics must check the date itself.
+  it("throws a 404 for an expired link", async () => {
+    ddbMock.on(GetCommand).resolves({
+      Item: { short_code: "sale", long_url: "https://example.com", expires_at: inSeconds(-60) },
+    });
+
+    const err = await catchError(getAnalytics("sale"));
+
+    expect(err.statusCode).to.equal(404);
+    expect(err.message).to.equal("URL not found");
+  });
+
+  it("includes expires_at as an ISO date for a link that expires", async () => {
+    const expiresAt = inSeconds(3600);
+    ddbMock.on(GetCommand).resolves({
+      Item: {
+        short_code: "sale",
+        long_url: "https://example.com",
+        clicks: 3,
+        expires_at: expiresAt,
+      },
+    });
+
+    const stats = await getAnalytics("sale");
+
+    expect(stats).to.deep.equal({
+      short_code: "sale",
+      long_url: "https://example.com",
+      clicks: 3,
+      expires_at: new Date(expiresAt * 1000).toISOString(),
+    });
+  });
+});

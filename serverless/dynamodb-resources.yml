@@ -10,3 +10,5 @@ Resources:
         - AttributeName: short_code
           KeyType: HASH
       BillingMode: PAY_PER_REQUEST
+      # No TTL on purpose: expired links are kept as retired records so their
+      # codes can never be claimed again. Readers treat them as not found.

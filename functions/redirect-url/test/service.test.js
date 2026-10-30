@@ -100,3 +100,46 @@ describe("redirect-url service: getLongUrl", () => {
     expect(updateInput.Key).to.deep.equal({ short_code: "mycode" });
   });
 });
+
+describe("redirect-url service: expired links", () => {
+  let ddbMock;
+
+  before(() => {
+    ddbMock = mockClient(DynamoDBDocumentClient);
+  });
+
+  beforeEach(() => {
+    ddbMock.reset();
+  });
+
+  after(() => {
+    ddbMock.restore();
+  });
+
+  silenceConsole();
+
+  const inSeconds = (offset) => Math.floor(Date.now() / 1000) + offset;
+
+  // Expiry: expired links stay in the table, so the redirect must check the date itself.
+  it("throws a 404 for an expired link without counting the click", async () => {
+    ddbMock.on(GetCommand).resolves({
+      Item: { short_code: "sale", long_url: "https://example.com", expires_at: inSeconds(-60) },
+    });
+
+    const err = await catchError(getLongUrl("sale"));
+
+    expect(err.statusCode).to.equal(404);
+    expect(err.message).to.equal("URL not found");
+    expect(ddbMock.commandCalls(UpdateCommand)).to.have.lengthOf(0);
+  });
+
+  it("still redirects and counts a link whose expiry is in the future", async () => {
+    ddbMock.on(GetCommand).resolves({
+      Item: { short_code: "sale", long_url: "https://example.com", expires_at: inSeconds(3600) },
+    });
+    ddbMock.on(UpdateCommand).resolves({});
+
+    expect(await getLongUrl("sale")).to.equal("https://example.com");
+    expect(ddbMock.commandCalls(UpdateCommand)).to.have.lengthOf(1);
+  });
+});
