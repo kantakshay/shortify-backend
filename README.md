@@ -118,7 +118,29 @@ POST /shorten
 GET /{short_code}
 ```
 
-Redirects to the original URL.
+Redirects to the original URL (`302`). Each visit adds 1 to the link's click count and records the time of the click; neither is shown to the visitor.
+
+---
+
+### Analytics
+
+```
+GET /analytics/{short_code}
+```
+
+Response (`200`):
+
+```json
+{
+  "short_code": "promo2026",
+  "long_url": "https://example.com/very/long/path",
+  "clicks": 42,
+  "created_at": "2026-10-28T10:00:00.000Z",
+  "last_clicked_at": "2026-10-30T09:15:00.000Z"
+}
+```
+
+`last_clicked_at` is `null` until the link's first click (and for links last clicked before this field was added). `expires_at` is included when the link has an expiry. Unknown and expired links return `404`.
 
 ---
 

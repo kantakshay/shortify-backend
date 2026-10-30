@@ -23,6 +23,9 @@ const getAnalytics = async (shortCode) => {
     short_code: data.short_code,
     long_url: data.long_url,
     clicks: data.clicks || 0,
+    created_at: data.created_at || null,
+    // null until the first click (also for links last clicked before this field existed)
+    last_clicked_at: data.last_clicked_at || null,
     ...(typeof data.expires_at === "number" && {
       expires_at: new Date(data.expires_at * 1000).toISOString(),
     }),
