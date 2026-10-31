@@ -7,6 +7,7 @@ jobs:
   deploy:
     name: Deploy to AWS (Dev)
     runs-on: ubuntu-latest
+    environment: dev
 
     steps:
       # 1. Checkout the same branch from which workflow is triggered
@@ -23,7 +24,7 @@ jobs:
 
       # 3. Install dependencies (includes Serverless Framework v4)
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       # 4. Run unit tests: a failing test stops the deploy
       - name: Run tests
@@ -59,3 +60,15 @@ jobs:
             --patch-operations \
               "op=replace,path=/*/*/throttling/rateLimit,value=$RATE_LIMIT" \
               "op=replace,path=/*/*/throttling/burstLimit,value=$BURST_LIMIT"
+
+      # 8. Show which branch and commit is now running on dev. The values go in
+      #    through env, not ${{ }} inside the script, so a branch name can't
+      #    inject shell commands.
+      - name: Deployment summary
+        env:
+          BRANCH: ${{ github.ref_name }}
+          COMMIT: ${{ github.sha }}
+        run: |
+          echo "### Deployed to dev" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Branch: \`$BRANCH\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Commit: \`$COMMIT\`" >> "$GITHUB_STEP_SUMMARY"
