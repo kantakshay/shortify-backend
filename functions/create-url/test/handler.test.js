@@ -175,4 +175,16 @@ describe("create-url handler: expiresAt", () => {
     expect(parseBody(res).error).to.equal("expiresAt must be in the future");
     expect(ddbMock.commandCalls(PutCommand)).to.have.lengthOf(0);
   });
+
+  // Without a timezone the same request would mean a different moment per server
+  it("returns 400 for an expiry without a timezone", async () => {
+    const res = await post({ url: "https://example.com", expiresAt: "2099-12-31T23:59:59" });
+
+    expect(res.statusCode).to.equal(400);
+    expectCors(res);
+    expect(parseBody(res).error).to.equal(
+      "expiresAt must be an ISO date with a timezone, e.g. 2026-12-31T23:59:59Z",
+    );
+    expect(ddbMock.commandCalls(PutCommand)).to.have.lengthOf(0);
+  });
 });
