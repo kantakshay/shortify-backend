@@ -1,3 +1,5 @@
+require("./helpers");
+
 const { expect } = require("chai");
 const fs = require("fs");
 const path = require("path");
@@ -94,6 +96,22 @@ describe("create-url config (serverless/functions.yml)", () => {
         ],
       ],
     });
+  });
+
+  // A custom code equal to a fixed top-level route could never be opened, so
+  // every such route must be in the reserved list.
+  it("reserves every fixed top-level API route as a custom code", () => {
+    const { RESERVED_CODES } = require("../service");
+    const topLevelRoutes = Object.values(config.functions)
+      .flatMap((fn) => fn.events || [])
+      .filter((event) => event.http)
+      .map((event) => event.http.path.replace(/^\//, "").split("/")[0])
+      .filter((segment) => segment && !segment.startsWith("{"));
+
+    expect(topLevelRoutes).to.include.members(["shorten", "analytics"]);
+    topLevelRoutes.forEach((route) =>
+      expect(RESERVED_CODES.has(route.toLowerCase())).to.equal(true),
+    );
   });
 
   it("runs lint, the format check and the unit tests on pull requests", () => {

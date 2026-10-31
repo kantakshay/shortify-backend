@@ -95,7 +95,7 @@ POST /shorten
 }
 ```
 
-- `customCode` is optional (3–20 letters or numbers, stored in lowercase).
+- `customCode` is optional (3–20 letters or numbers, stored in lowercase). `shorten` and `analytics` are reserved, in any letter case, because they are API routes: they return `400`.
 - `expiresAt` is optional: a future date and time. After it, the link returns `404`. Without it, the link never expires. A short code is never reused, even after its link expires.
   - It must be a full ISO 8601 date and time **with a timezone**: `Z` for UTC (`2027-12-31T18:29:59Z`) or an offset such as `+05:30` for IST (`2027-12-31T23:59:59+05:30`). Seconds and milliseconds are optional.
   - Rejected with `400`: no timezone (`2027-12-31T23:59:59`), a date only (`2027-12-31`), other formats (`Dec 31 2027`), and dates or times that don't exist (`2027-02-30T00:00:00Z`, `2027-12-31T25:00:00Z`).

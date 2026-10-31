@@ -133,6 +133,28 @@ describe("create-url service: createShortUrl", () => {
         expect(savedItems()).to.have.lengthOf(0);
       });
     });
+
+    // A code equal to a fixed API route could be saved but never opened:
+    // API Gateway sends /shorten and /analytics to their own Lambdas.
+    ["shorten", "analytics", "SHORTEN", "Analytics", "  shorten  "].forEach((customCode) => {
+      it(`throws a 400 for the reserved custom code ${JSON.stringify(customCode)}`, async () => {
+        ddbMock.on(PutCommand).resolves({});
+
+        const err = await catchError(createShortUrl({ url: "https://example.com", customCode }));
+
+        expect(err.statusCode).to.equal(400);
+        expect(err.message).to.equal("This custom code is reserved");
+        expect(savedItems()).to.have.lengthOf(0);
+      });
+    });
+
+    it("still accepts codes that only contain a reserved word", async () => {
+      ddbMock.on(PutCommand).resolves({});
+
+      const result = await createShortUrl({ url: "https://example.com", customCode: "shorten2" });
+
+      expect(result.short_code).to.equal("shorten2");
+    });
   });
 
   describe("URL validation", () => {
