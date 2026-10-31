@@ -82,6 +82,61 @@ describe("create-url config (serverless/functions.yml)", () => {
     expect(testIndex).to.be.below(deployIndex);
   });
 
+  // Deploys stay manual and allowed from any branch; they're recorded under
+  // the "dev" GitHub Environment, so its history shows what ran on dev.
+  it("is a manual deploy from any branch, through the dev environment", () => {
+    expect(workflow.on).to.have.property("workflow_dispatch");
+    expect(workflow.jobs.deploy).to.not.have.property("if");
+    expect(workflow.jobs.deploy.environment).to.equal("dev");
+  });
+
+  // npm install can pick newer versions than package-lock.json; npm ci
+  // installs exactly what CI tested.
+  it("installs the exact locked dependency versions with npm ci", () => {
+    const runs = workflow.jobs.deploy.steps.map((s) => s.run);
+
+    expect(runs).to.include("npm ci");
+    expect(runs).to.not.include("npm install");
+  });
+
+  it("ends with a summary of the deployed branch and commit", () => {
+    const steps = workflow.jobs.deploy.steps;
+    const summary = steps[steps.length - 1];
+
+    expect(summary.name).to.equal("Deployment summary");
+    expect(summary.env).to.deep.equal({
+      BRANCH: "${{ github.ref_name }}",
+      COMMIT: "${{ github.sha }}",
+    });
+    expect(summary.run).to.include("$GITHUB_STEP_SUMMARY");
+  });
+
+  // Security: ${{ }} inside a script is pasted in as code, so a crafted branch
+  // name could run shell commands. Values must reach scripts through env.
+  it("never pastes ${{ }} expressions into deploy scripts", () => {
+    workflow.jobs.deploy.steps
+      .filter((s) => s.run)
+      .forEach((s) => expect(s.run, s.name).to.not.include("${{"));
+  });
+
+  it("has a PR template with the testing and redeploy checklist", () => {
+    const template = fs.readFileSync(
+      path.join(__dirname, "../../../.github/pull_request_template.md"),
+      "utf8",
+    );
+
+    [
+      "## What changed",
+      "## Why",
+      "## How I tested",
+      "- [ ] `npm test` passes locally",
+      "- [ ] Deployed this branch to dev and tested in Postman",
+      "## After merging",
+      "- [ ] Redeployed `develop` to dev",
+      "## Risks / follow-ups",
+    ].forEach((line) => expect(template).to.include(line));
+  });
+
   // short_url is built from BASE_URL, which must be this stage's API Gateway address.
   it("sets BASE_URL to the dev API Gateway URL", () => {
     expect(environment.dev.BASE_URL).to.deep.equal({
