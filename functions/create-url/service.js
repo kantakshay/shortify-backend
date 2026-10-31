@@ -1,5 +1,6 @@
 const crypto = require("crypto");
-const saveUrl = require("./dynamoDB");const { nowInSeconds } = require("../../shared/expiry");
+const saveUrl = require("./dynamoDB");
+const { nowInSeconds } = require("../../shared/expiry");
 
 // Public address of the API (no trailing slash), used to build short_url
 const BASE_URL = (process.env.BASE_URL || "").replace(/\/+$/, "");
