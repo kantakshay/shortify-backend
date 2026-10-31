@@ -276,9 +276,54 @@ describe("create-url service: expiresAt", () => {
     expect(result.short_code).to.equal("sale");
   });
 
+  // An explicit timezone gives the same moment on any server
+  it("accepts a +05:30 offset and stores the matching UTC moment", async () => {
+    const result = await createShortUrl({
+      url: "https://example.com",
+      expiresAt: "2099-06-15T10:00:00+05:30",
+    });
+
+    const seconds = Date.UTC(2099, 5, 15, 4, 30, 0) / 1000;
+    expect(savedItems()[0].expires_at).to.equal(seconds);
+    expect(result.expires_at).to.equal("2099-06-15T04:30:00.000Z");
+  });
+
+  it("accepts a leap day", async () => {
+    const result = await createShortUrl({
+      url: "https://example.com",
+      expiresAt: "2096-02-29T12:00:00Z",
+    });
+
+    expect(result.expires_at).to.equal("2096-02-29T12:00:00.000Z");
+  });
+
+  it("accepts a time without seconds", async () => {
+    const result = await createShortUrl({
+      url: "https://example.com",
+      expiresAt: "2099-12-31T23:59Z",
+    });
+
+    expect(result.expires_at).to.equal("2099-12-31T23:59:00.000Z");
+  });
+
+  const FORMAT_MESSAGE = "expiresAt must be an ISO date with a timezone, e.g. 2026-12-31T23:59:59Z";
+  const NOT_REAL_MESSAGE = "expiresAt is not a real date";
+
   const invalidExpiries = [
-    ["is a number", 1798761599, "expiresAt must be a date string, e.g. 2026-12-31T23:59:59Z"],
-    ["is not a date", "next friday", "expiresAt must be a date string, e.g. 2026-12-31T23:59:59Z"],
+    ["is a number", 1798761599, FORMAT_MESSAGE],
+    ["is not a date", "next friday", FORMAT_MESSAGE],
+    // Date.parse used to accept these, reading them differently per server
+    ["has no timezone", "2026-12-31T23:59:59", FORMAT_MESSAGE],
+    ["is a date without a time", "2026-12-31", FORMAT_MESSAGE],
+    ["is written in words", "Dec 31 2026", FORMAT_MESSAGE],
+    ["uses a lowercase z", "2099-12-31T23:59:59z", FORMAT_MESSAGE],
+    // Date.parse used to roll these over to another day
+    ["is February 30", "2026-02-30T00:00:00Z", NOT_REAL_MESSAGE],
+    ["is February 29 in a non-leap year", "2097-02-29T00:00:00Z", NOT_REAL_MESSAGE],
+    ["has month 13", "2099-13-01T00:00:00Z", NOT_REAL_MESSAGE],
+    ["has hour 25", "2026-12-31T25:00:00Z", NOT_REAL_MESSAGE],
+    ["has hour 24", "2099-12-31T24:00:00Z", NOT_REAL_MESSAGE],
+    ["has minute 60", "2099-12-31T23:60:00Z", NOT_REAL_MESSAGE],
     ["is in the past", "2020-01-01T00:00:00Z", "expiresAt must be in the future"],
   ];
 
