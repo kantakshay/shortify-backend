@@ -18,6 +18,12 @@ function generateShortCode() {
 // How many random codes to try before giving up
 const MAX_ATTEMPTS = 5;
 
+// Codes that match a fixed top-level API route. API Gateway sends /shorten and
+// /analytics to their own Lambdas before /{short_code} is tried, so a link
+// saved under one of these could never be opened. Add every new top-level
+// route from serverless/functions.yml here (config.test.js checks this).
+const RESERVED_CODES = new Set(["shorten", "analytics"]);
+
 // Saves the URL under the caller's custom code; 409 if the code is taken
 async function saveCustomCode(url, customCode, expiresAt) {
   const code = validateCustomCode(customCode);
@@ -91,7 +97,16 @@ const validateCustomCode = (customCode) => {
   }
 
   // Normalize (important)
-  return cleaned.toLowerCase();
+  const code = cleaned.toLowerCase();
+
+  // Checked after lowercasing, so "Shorten" and "ANALYTICS" are caught too
+  if (RESERVED_CODES.has(code)) {
+    const err = new Error("This custom code is reserved");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  return code;
 };
 // Validates the URL and returns it normalized
 const validateUrl = (url) => {
@@ -171,6 +186,8 @@ const validateExpiresAt = (expiresAt) => {
 
   return seconds;
 };
+
+exports.RESERVED_CODES = RESERVED_CODES;
 
 // Main service
 exports.createShortUrl = async ({ url, customCode, expiresAt }) => {
