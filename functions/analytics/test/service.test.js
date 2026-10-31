@@ -21,13 +21,16 @@ describe("analytics service: getAnalytics", () => {
     ddbMock.restore();
   });
 
-  it("returns only short_code, long_url and clicks", async () => {
+  // Analytics step 1: created_at and last_clicked_at are returned
+  it("returns the code, URL, clicks, created and last-clicked dates", async () => {
     ddbMock.on(GetCommand).resolves({
       Item: {
         short_code: "abc123",
         long_url: "https://example.com",
         clicks: 42,
         created_at: "2026-10-28T00:00:00.000Z",
+        last_clicked_at: "2026-10-30T09:15:00.000Z",
+        internal_field: "not for callers",
       },
     });
 
@@ -37,17 +40,51 @@ describe("analytics service: getAnalytics", () => {
       short_code: "abc123",
       long_url: "https://example.com",
       clicks: 42,
+      created_at: "2026-10-28T00:00:00.000Z",
+      last_clicked_at: "2026-10-30T09:15:00.000Z",
     });
   });
 
-  it("reports 0 clicks for a code that has never been visited", async () => {
+  it("reports 0 clicks and a null last_clicked_at for a code never visited", async () => {
     ddbMock.on(GetCommand).resolves({
-      Item: { short_code: "fresh1", long_url: "https://example.com" },
+      Item: {
+        short_code: "fresh1",
+        long_url: "https://example.com",
+        created_at: "2026-10-28T00:00:00.000Z",
+      },
     });
 
     const stats = await getAnalytics("fresh1");
 
     expect(stats.clicks).to.equal(0);
+    expect(stats.last_clicked_at).to.be.null;
+  });
+
+  // Links clicked before last_clicked_at existed have clicks but no click time
+  it("returns a null last_clicked_at for an older link with clicks but no click time", async () => {
+    ddbMock.on(GetCommand).resolves({
+      Item: {
+        short_code: "old1",
+        long_url: "https://example.com",
+        clicks: 7,
+        created_at: "2026-10-01T00:00:00.000Z",
+      },
+    });
+
+    const stats = await getAnalytics("old1");
+
+    expect(stats.clicks).to.equal(7);
+    expect(stats.last_clicked_at).to.be.null;
+  });
+
+  it("returns a null created_at for an item without one", async () => {
+    ddbMock.on(GetCommand).resolves({
+      Item: { short_code: "nodate", long_url: "https://example.com" },
+    });
+
+    const stats = await getAnalytics("nodate");
+
+    expect(stats.created_at).to.be.null;
   });
 
   it("throws a 404 for an unknown code", async () => {
@@ -126,6 +163,8 @@ describe("analytics service: expired links", () => {
         short_code: "sale",
         long_url: "https://example.com",
         clicks: 3,
+        created_at: "2026-10-28T00:00:00.000Z",
+        last_clicked_at: "2026-10-29T12:00:00.000Z",
         expires_at: expiresAt,
       },
     });
@@ -136,6 +175,8 @@ describe("analytics service: expired links", () => {
       short_code: "sale",
       long_url: "https://example.com",
       clicks: 3,
+      created_at: "2026-10-28T00:00:00.000Z",
+      last_clicked_at: "2026-10-29T12:00:00.000Z",
       expires_at: new Date(expiresAt * 1000).toISOString(),
     });
   });

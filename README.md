@@ -91,12 +91,15 @@ POST /shorten
 {
   "url": "https://example.com",
   "customCode": "promo2026",
-  "expiresAt": "2026-12-31T23:59:59Z"
+  "expiresAt": "2027-12-31T23:59:59+05:30"
 }
 ```
 
-- `customCode` is optional (3–20 letters or numbers, stored in lowercase).
+- `customCode` is optional (3–20 letters or numbers, stored in lowercase). `shorten` and `analytics` are reserved, in any letter case, because they are API routes: they return `400`.
 - `expiresAt` is optional: a future date and time. After it, the link returns `404`. Without it, the link never expires. A short code is never reused, even after its link expires.
+  - It must be a full ISO 8601 date and time **with a timezone**: `Z` for UTC (`2027-12-31T18:29:59Z`) or an offset such as `+05:30` for IST (`2027-12-31T23:59:59+05:30`). Seconds and milliseconds are optional.
+  - Rejected with `400`: no timezone (`2027-12-31T23:59:59`), a date only (`2027-12-31`), other formats (`Dec 31 2027`), and dates or times that don't exist (`2027-02-30T00:00:00Z`, `2027-12-31T25:00:00Z`).
+  - The response's `expires_at` is always in UTC.
 
 **Response:** `201 Created`
 
@@ -118,7 +121,29 @@ POST /shorten
 GET /{short_code}
 ```
 
-Redirects to the original URL.
+Redirects to the original URL (`302`). Each visit adds 1 to the link's click count and records the time of the click; neither is shown to the visitor.
+
+---
+
+### Analytics
+
+```
+GET /analytics/{short_code}
+```
+
+Response (`200`):
+
+```json
+{
+  "short_code": "promo2026",
+  "long_url": "https://example.com/very/long/path",
+  "clicks": 42,
+  "created_at": "2026-10-28T10:00:00.000Z",
+  "last_clicked_at": "2026-10-30T09:15:00.000Z"
+}
+```
+
+`last_clicked_at` is `null` until the link's first click (and for links last clicked before this field was added). `expires_at` is included when the link has an expiry. Unknown and expired links return `404`.
 
 ---
 

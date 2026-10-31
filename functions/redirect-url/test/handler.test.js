@@ -38,6 +38,25 @@ describe("redirect-url handler (GET /{short_code})", () => {
     expectCors(res);
   });
 
+  // Stats are recorded on a click but never shown to the person clicking
+  it("does not include stats such as clicks or click times in the redirect", async () => {
+    ddbMock.on(GetCommand).resolves({
+      Item: {
+        short_code: "abc123",
+        long_url: "https://example.com/page",
+        clicks: 5,
+        created_at: "2026-10-28T00:00:00.000Z",
+        last_clicked_at: "2026-10-29T12:00:00.000Z",
+      },
+    });
+    ddbMock.on(UpdateCommand).resolves({});
+
+    const res = await visit("abc123");
+
+    expect(res.body).to.be.undefined;
+    expect(JSON.stringify(res.headers)).to.not.match(/clicks|created_at|last_clicked_at/);
+  });
+
   it("reads the short code from the path parameters", async () => {
     ddbMock.on(GetCommand).resolves({});
 

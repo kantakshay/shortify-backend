@@ -27,7 +27,13 @@ describe("analytics handler (GET /analytics/{short_code})", () => {
 
   it("returns 200 with the stats as JSON and CORS headers", async () => {
     ddbMock.on(GetCommand).resolves({
-      Item: { short_code: "abc123", long_url: "https://example.com", clicks: 42 },
+      Item: {
+        short_code: "abc123",
+        long_url: "https://example.com",
+        clicks: 42,
+        created_at: "2026-10-28T00:00:00.000Z",
+        last_clicked_at: "2026-10-30T09:15:00.000Z",
+      },
     });
 
     const res = await getStats("abc123");
@@ -38,6 +44,8 @@ describe("analytics handler (GET /analytics/{short_code})", () => {
       short_code: "abc123",
       long_url: "https://example.com",
       clicks: 42,
+      created_at: "2026-10-28T00:00:00.000Z",
+      last_clicked_at: "2026-10-30T09:15:00.000Z",
     });
   });
 

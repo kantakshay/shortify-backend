@@ -18,6 +18,12 @@ function generateShortCode() {
 // How many random codes to try before giving up
 const MAX_ATTEMPTS = 5;
 
+// Codes that match a fixed top-level API route. API Gateway sends /shorten and
+// /analytics to their own Lambdas before /{short_code} is tried, so a link
+// saved under one of these could never be opened. Add every new top-level
+// route from serverless/functions.yml here (config.test.js checks this).
+const RESERVED_CODES = new Set(["shorten", "analytics"]);
+
 // Saves the URL under the caller's custom code; 409 if the code is taken
 async function saveCustomCode(url, customCode, expiresAt) {
   const code = validateCustomCode(customCode);
@@ -91,7 +97,16 @@ const validateCustomCode = (customCode) => {
   }
 
   // Normalize (important)
-  return cleaned.toLowerCase();
+  const code = cleaned.toLowerCase();
+
+  // Checked after lowercasing, so "Shorten" and "ANALYTICS" are caught too
+  if (RESERVED_CODES.has(code)) {
+    const err = new Error("This custom code is reserved");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  return code;
 };
 // Validates the URL and returns it normalized
 const validateUrl = (url) => {
@@ -114,16 +129,50 @@ const validateUrl = (url) => {
   return parsed.href; // normalized URL
 };
 
-// Validates the optional expiresAt (a date string such as
-// "2026-12-31T23:59:59Z") and returns it in epoch seconds, or undefined.
+// Full ISO 8601 date and time with an explicit timezone (Z or ±HH:MM), e.g.
+// "2026-12-31T23:59:59Z" or "2026-12-31T23:59:59+05:30". Without a timezone,
+// Date.parse uses the server's own timezone, so the same request would mean
+// different moments on a laptop (IST) and in Lambda (UTC).
+const ISO_WITH_ZONE =
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,3})?)?(Z|[+-]\d{2}:\d{2})$/;
+
+// Date.parse quietly rolls impossible dates over (Feb 30 → Mar 2), so check
+// that the date and time the caller wrote actually exist
+const isRealDateTime = ([year, month, day, hour, minute, second = 0]) => {
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day &&
+    hour <= 23 &&
+    minute <= 59 &&
+    second <= 59
+  );
+};
+
+// Validates the optional expiresAt and returns it in epoch seconds, or undefined
 const validateExpiresAt = (expiresAt) => {
   if (expiresAt === undefined || expiresAt === null) {
     return undefined;
   }
 
-  const time = typeof expiresAt === "string" ? Date.parse(expiresAt) : NaN;
-  if (Number.isNaN(time)) {
-    const err = new Error("expiresAt must be a date string, e.g. 2026-12-31T23:59:59Z");
+  const match = typeof expiresAt === "string" ? ISO_WITH_ZONE.exec(expiresAt) : null;
+  if (!match) {
+    const err = new Error(
+      "expiresAt must be an ISO date with a timezone, e.g. 2026-12-31T23:59:59Z",
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // year, month, day, hour, minute and (if given) second, as numbers
+  const parts = match
+    .slice(1, 7)
+    .filter((part) => part !== undefined)
+    .map(Number);
+  const time = Date.parse(expiresAt);
+  if (!isRealDateTime(parts) || Number.isNaN(time)) {
+    const err = new Error("expiresAt is not a real date");
     err.statusCode = 400;
     throw err;
   }
@@ -137,6 +186,8 @@ const validateExpiresAt = (expiresAt) => {
 
   return seconds;
 };
+
+exports.RESERVED_CODES = RESERVED_CODES;
 
 // Main service
 exports.createShortUrl = async ({ url, customCode, expiresAt }) => {
