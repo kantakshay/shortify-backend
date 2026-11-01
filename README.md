@@ -156,7 +156,11 @@ Response (`200`):
 3. Click **Run workflow**
 4. Enter branch name
 
-The workflow needs these repository secrets: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` and `SERVERLESS_ACCESS_KEY` (Serverless Framework v4).
+The workflow logs in to AWS with **OIDC**: GitHub gives each run a short-lived token, and AWS swaps it for temporary credentials of a deploy role. No AWS keys are stored in GitHub. It needs:
+
+- the GitHub OIDC identity provider in AWS IAM, and a deploy role that trusts only this repo's `dev` environment (`repo:kantakshay/shortify-backend:environment:dev`);
+- the variable `AWS_DEPLOY_ROLE_ARN` (the role's ARN) on the `dev` environment;
+- the secret `SERVERLESS_ACCESS_KEY` (Serverless Framework v4 sign-in).
 
 ---
 
