@@ -7,6 +7,11 @@ on:
     branches: [main, develop]
   pull_request:
 
+# Least privilege for the built-in GITHUB_TOKEN: tests only need to read the
+# code, so even a compromised step can't push commits or edit PRs.
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Unit tests

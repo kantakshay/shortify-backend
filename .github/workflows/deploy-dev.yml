@@ -8,6 +8,12 @@ jobs:
     name: Deploy to AWS (Dev)
     runs-on: ubuntu-latest
     environment: dev
+    # id-token: write lets GitHub issue this job a short-lived OIDC token, which
+    # AWS swaps for temporary credentials (no stored AWS keys). Setting
+    # permissions here turns everything else off, so checkout needs contents: read.
+    permissions:
+      id-token: write
+      contents: read
 
     steps:
       # 1. Checkout the same branch from which workflow is triggered
@@ -30,12 +36,16 @@ jobs:
       - name: Run tests
         run: npm test
 
-      # 5. Configure AWS credentials
+      # 5. Log in to AWS with OIDC: AWS checks the GitHub token against the
+      #    deploy role's trust policy (this repo, environment dev) and returns
+      #    credentials that expire on their own. The role ARN isn't secret, so
+      #    it's a variable on the dev environment. The session name shows up in
+      #    CloudTrail, so every AWS action can be traced back to its run.
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          role-session-name: github-deploy-${{ github.run_id }}
           aws-region: ap-south-1
 
       # 6. Deploy to AWS (Serverless v4 signs in with an access key)
