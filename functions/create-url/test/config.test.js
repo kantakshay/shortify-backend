@@ -119,6 +119,53 @@ describe("create-url config (serverless/functions.yml)", () => {
       .forEach((s) => expect(s.run, s.name).to.not.include("${{"));
   });
 
+  // Security (OIDC): the deploy job may request a GitHub OIDC token and read
+  // the code, nothing else.
+  it("lets only the deploy job request an OIDC token, with read-only code access", () => {
+    expect(workflow.jobs.deploy.permissions).to.deep.equal({
+      "id-token": "write",
+      contents: "read",
+    });
+    expect(workflow).to.not.have.property("permissions");
+  });
+
+  // Security (OIDC): AWS is reached through a role with temporary credentials,
+  // never through long-lived access keys stored in GitHub.
+  it("logs in to AWS by assuming the deploy role, before deploying", () => {
+    const steps = workflow.jobs.deploy.steps;
+    const loginIndex = steps.findIndex((s) =>
+      (s.uses || "").startsWith("aws-actions/configure-aws-credentials@"),
+    );
+    const deployIndex = steps.findIndex((s) => s.name === "Deploy to AWS (dev)");
+
+    expect(loginIndex).to.be.at.least(0);
+    expect(loginIndex).to.be.below(deployIndex);
+    expect(steps[loginIndex].with).to.deep.equal({
+      "role-to-assume": "${{ vars.AWS_DEPLOY_ROLE_ARN }}",
+      "role-session-name": "github-deploy-${{ github.run_id }}",
+      "aws-region": "ap-south-1",
+    });
+  });
+
+  it("uses no stored AWS access keys anywhere in the deploy workflow", () => {
+    const text = fs.readFileSync(
+      path.join(__dirname, "../../../.github/workflows/deploy-dev.yml"),
+      "utf8",
+    );
+
+    ["aws-access-key-id", "aws-secret-access-key", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]
+      .filter((name) => text.includes(name))
+      .forEach((name) => expect.fail(`deploy workflow still mentions ${name}`));
+  });
+
+  // Least privilege: the test workflow's GITHUB_TOKEN can only read the code.
+  it("gives the test workflow a read-only GITHUB_TOKEN", () => {
+    expect(testWorkflow.permissions).to.deep.equal({ contents: "read" });
+    Object.values(testWorkflow.jobs).forEach((job) =>
+      expect(job).to.not.have.property("permissions"),
+    );
+  });
+
   it("has a PR template with the testing and redeploy checklist", () => {
     const template = fs.readFileSync(
       path.join(__dirname, "../../../.github/pull_request_template.md"),
