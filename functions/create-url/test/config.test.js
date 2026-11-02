@@ -51,6 +51,15 @@ describe("create-url config (serverless/functions.yml)", () => {
     expect(serverlessConfig.provider.iam.role).to.deep.equal({ mode: "perFunction" });
   });
 
+  // Logs are deleted after 14 days instead of being kept (and billed) forever.
+  // Set on the provider, so it applies to every Lambda's log group.
+  it("keeps Lambda logs for 14 days", () => {
+    expect(serverlessConfig.provider.logRetentionInDays).to.equal(14);
+    Object.values(config.functions).forEach((fn) =>
+      expect(fn).to.not.have.property("logRetentionInDays"),
+    );
+  });
+
   // Security: least privilege, it only writes new links, on the URL table only.
   it("may only PutItem on the URL table", () => {
     const { statements } = config.functions.createUrl.iam.role;
