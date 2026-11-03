@@ -1,5 +1,9 @@
 const { createShortUrl } = require("./service");
 const { jsonResponse, errorToResponse } = require("../../shared/response");
+const { logHandlerError } = require("../../shared/log");
+
+// Prefix for this Lambda's log lines, e.g. "[create-url] 400: Invalid URL format"
+const LAMBDA_NAME = "create-url";
 
 exports.main = async (event) => {
   let body;
@@ -20,7 +24,7 @@ exports.main = async (event) => {
 
     return jsonResponse(201, result);
   } catch (err) {
-    console.error("Handler Error:", err);
+    logHandlerError(LAMBDA_NAME, err);
 
     return errorToResponse(err);
   }
