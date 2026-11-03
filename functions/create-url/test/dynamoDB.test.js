@@ -1,4 +1,4 @@
-const { conditionalCheckFailed, catchError, silenceConsole } = require("./helpers");
+const { conditionalCheckFailed, catchError, silenceConsole, recordConsole } = require("./helpers");
 
 const { expect } = require("chai");
 const { mockClient } = require("aws-sdk-client-mock");
@@ -75,5 +75,27 @@ describe("create-url dynamoDB: saveUrl", () => {
     const err = await catchError(saveUrl("abc123", "https://example.com/"));
 
     expect(err.message).to.equal("Throughput exceeded");
+  });
+
+  // A taken code is a normal event (retried, or a 409), so it must not be
+  // logged as an error here; the caller decides what it means.
+  it("does not log a taken code", async () => {
+    ddbMock.on(PutCommand).rejects(conditionalCheckFailed());
+    const logs = recordConsole();
+
+    await catchError(saveUrl("abc123", "https://example.com/"));
+
+    expect(logs.error).to.have.lengthOf(0);
+    expect(logs.warn).to.have.lengthOf(0);
+  });
+
+  it("logs other DynamoDB errors as ERROR", async () => {
+    ddbMock.on(PutCommand).rejects(new Error("Throughput exceeded"));
+    const logs = recordConsole();
+
+    await catchError(saveUrl("abc123", "https://example.com/"));
+
+    expect(logs.error).to.have.lengthOf(1);
+    expect(logs.error[0][0]).to.equal("[DynamoDB ERROR]");
   });
 });

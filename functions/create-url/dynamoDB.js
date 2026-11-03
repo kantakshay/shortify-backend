@@ -19,7 +19,11 @@ const saveUrl = async (shortCode, longUrl, expiresAt) => {
       }),
     );
   } catch (err) {
-    console.error("[DynamoDB ERROR]", err);
+    // A taken code is normal, not a failure: the caller decides what it means
+    // (retry with a new random code, or 409 for a custom code)
+    if (err.name !== "ConditionalCheckFailedException") {
+      console.error("[DynamoDB ERROR]", err);
+    }
     throw err;
   }
 };

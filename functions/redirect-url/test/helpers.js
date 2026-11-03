@@ -29,15 +29,28 @@ const silenceConsole = () => {
 
   beforeEach(() => {
     original.log = console.log;
+    original.warn = console.warn;
     original.error = console.error;
     console.log = () => {};
+    console.warn = () => {};
     console.error = () => {};
   });
 
   afterEach(() => {
     console.log = original.log;
+    console.warn = original.warn;
     console.error = original.error;
   });
+};
+
+// Records console output for the current test. Use only inside a describe
+// that calls silenceConsole(), which puts the real console back afterwards.
+const recordConsole = () => {
+  const calls = { log: [], warn: [], error: [] };
+  console.log = (...args) => calls.log.push(args);
+  console.warn = (...args) => calls.warn.push(args);
+  console.error = (...args) => calls.error.push(args);
+  return calls;
 };
 
 const expectCors = (res) => {
@@ -50,4 +63,11 @@ const expectCors = (res) => {
 
 const parseBody = (res) => JSON.parse(res.body);
 
-module.exports = { conditionalCheckFailed, catchError, silenceConsole, expectCors, parseBody };
+module.exports = {
+  conditionalCheckFailed,
+  catchError,
+  silenceConsole,
+  recordConsole,
+  expectCors,
+  parseBody,
+};

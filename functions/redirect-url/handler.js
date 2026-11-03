@@ -1,5 +1,9 @@
 const { getLongUrl } = require("./service");
 const { redirectResponse, errorToResponse } = require("../../shared/response");
+const { logHandlerError } = require("../../shared/log");
+
+// Prefix for this Lambda's log lines, e.g. "[redirect-url] 404: URL not found"
+const LAMBDA_NAME = "redirect-url";
 
 exports.main = async (event) => {
   try {
@@ -9,7 +13,7 @@ exports.main = async (event) => {
 
     return redirectResponse(longUrl);
   } catch (err) {
-    console.error("Entry Error:", err);
+    logHandlerError(LAMBDA_NAME, err);
 
     return errorToResponse(err);
   }
