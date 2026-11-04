@@ -9,6 +9,9 @@
     "test:create-url": "mocha \"functions/create-url/test/*.test.js\"",
     "test:redirect-url": "mocha \"functions/redirect-url/test/*.test.js\"",
     "test:analytics": "mocha \"functions/analytics/test/*.test.js\"",
+    "test:integration": "mocha --require integration/setup.js \"integration/*.test.js\"",
+    "db:start": "docker run --rm -d --name shortify-dynamodb -p 8100:8000 amazon/dynamodb-local:3.3.2",
+    "db:stop": "docker stop shortify-dynamodb",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

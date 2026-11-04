@@ -147,20 +147,46 @@ Response (`200`):
 
 ---
 
+### Errors
+
+Errors are JSON: `{ "error": "<message>" }`. A `4xx` message says what to fix (e.g. `Invalid URL format`).
+
+A `5xx` hides the real cause and adds the request ID instead:
+
+```json
+{ "error": "Internal Server Error", "requestId": "8f5c2a1e-3b7d-4c6e-9a1f-2d4e6b8c0a12" }
+```
+
+Quote the `requestId` when reporting a problem: it's the Lambda request ID, so searching for it in the function's CloudWatch log group ("Search all log streams") shows every log line of that request.
+
+---
+
 ## 🚀 Deployment
 
 ### Manual Deployment via GitHub Actions
 
 1. Go to **Actions** tab
-2. Select workflow
+2. Select the **API Pipeline** workflow
 3. Click **Run workflow**
-4. Enter branch name
+4. Pick **`develop`** (or `main`)
+
+Only `main` and `develop` can be deployed: from any other branch the deploy job is skipped, and the GitHub Environment `dev` allows only those two branches (Settings → Environments → `dev` → Deployment branches). Feature branches are checked by the unit and integration tests on their pull request, then deployed after merging. Deploy **after** the merge, and check that the deployment summary shows the merge commit.
 
 The workflow logs in to AWS with **OIDC**: GitHub gives each run a short-lived token, and AWS swaps it for temporary credentials of a deploy role. No AWS keys are stored in GitHub. It needs:
 
 - the GitHub OIDC identity provider in AWS IAM, and a deploy role that trusts only this repo's `dev` environment (`repo:kantakshay/shortify-backend:environment:dev`);
 - the variable `AWS_DEPLOY_ROLE_ARN` (the role's ARN) on the `dev` environment;
 - the secret `SERVERLESS_ACCESS_KEY` (Serverless Framework v4 sign-in).
+
+### The table is protected
+
+The DynamoDB table holds every link, so it can't be deleted by accident:
+
+- **`DeletionPolicy` / `UpdateReplacePolicy: Retain`**: CloudFormation keeps the table on `serverless remove`, if it disappears from the template, or if a change (a new name or key) needs a new table.
+- **Deletion protection**: the table refuses to be deleted, from the console, the CLI or CloudFormation, until protection is turned off.
+- **Point-in-time recovery**: continuous backups; the table can be restored to any second in the last 35 days (into a new table). It costs about $0.20 per GB per month.
+
+Because of this, `serverless remove` deletes the Lambdas and the API but **leaves the table**, and the next deploy fails because the table already exists. To deploy again, either import the existing table into the stack (CloudFormation → the stack → Import resources), or, to really start fresh, turn off deletion protection and delete the table by hand first.
 
 ---
 
@@ -172,6 +198,28 @@ Unit tests run locally with DynamoDB mocked, so no AWS access is needed:
 npm test                    # all lambdas
 npm run test:create-url     # one lambda
 ```
+
+### Integration tests (DynamoDB Local)
+
+The unit tests mock DynamoDB, so they can't tell whether DynamoDB really enforces our condition and update expressions. The integration tests run the real code against **DynamoDB Local** (AWS's local copy of the DynamoDB engine, in Docker) and check that:
+
+- the same code can't be saved twice, and the first link is kept;
+- a click on an unknown code creates nothing;
+- an expired link stays, and its code can't be taken as a custom code (`409`);
+- 50 clicks at the same moment are counted as exactly 50;
+- a link can be created, opened and reported end to end.
+
+```
+npm run db:start           # starts DynamoDB Local in Docker (Docker Desktop must be running)
+npm run test:integration
+npm run db:stop            # stops it; its data is in memory, so each start is clean
+```
+
+DynamoDB Local is reached at `http://localhost:8100` (port 8100 on your machine maps to the container's port 8000), so it doesn't clash with anything already using port 8000. To use another port, set `DYNAMODB_ENDPOINT`.
+
+They create their own table (`url-shortener-integration`) and delete it afterwards, always use fake credentials, and refuse to run against anything but `localhost`. In CI they run in the **Integration tests** job, with DynamoDB Local as a service container. `npm test` stays the fast, mocked suite.
+
+DynamoDB Local doesn't check IAM permissions, never throttles, has no partitions, and always returns the latest data, so those are covered elsewhere (the config tests check IAM).
 
 End-to-end checks run against the deployed `dev` API.
 

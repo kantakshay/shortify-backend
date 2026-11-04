@@ -5,11 +5,12 @@
 ## How I tested
 
 - [ ] `npm test` passes locally
-- [ ] Deployed this branch to dev and tested in Postman
+- [ ] `npm run test:integration` passes locally (if DynamoDB code changed)
 - [ ] Edge cases checked:
 
 ## After merging
 
-- [ ] Redeployed `develop` to dev
+- [ ] Redeployed `develop` to dev (the deployment summary shows the merge commit)
+- [ ] Tested on dev in Postman
 
 ## Risks / follow-ups

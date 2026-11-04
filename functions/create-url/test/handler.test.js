@@ -1,4 +1,10 @@
-const { conditionalCheckFailed, silenceConsole, expectCors, parseBody } = require("./helpers");
+const {
+  conditionalCheckFailed,
+  silenceConsole,
+  recordConsole,
+  expectCors,
+  parseBody,
+} = require("./helpers");
 
 const { expect } = require("chai");
 const { mockClient } = require("aws-sdk-client-mock");
@@ -87,18 +93,20 @@ describe("create-url handler (POST /shorten)", () => {
 
   // Security: the full request (headers, source IP, body) must not be logged.
   it("does not log the request", async () => {
-    ddbMock.on(PutCommand).resolves({});
-    const logged = [];
-    console.log = (...args) => logged.push(args);
-    console.error = (...args) => logged.push(args);
-
-    await main({
+    // First request succeeds, second fails with a 409, so both paths are covered
+    ddbMock.on(PutCommand).resolvesOnce({}).rejects(conditionalCheckFailed());
+    const logs = recordConsole();
+    const event = (body) => ({
       headers: { "X-Forwarded-For": "203.0.113.7" },
       requestContext: { identity: { sourceIp: "203.0.113.7" } },
-      body: JSON.stringify({ url: "https://example.com/private-page" }),
+      body: JSON.stringify(body),
     });
 
-    const output = JSON.stringify(logged);
+    await main(event({ url: "https://example.com/private-page" }));
+    await main(event({ url: "https://example.com/private-page", customCode: "taken1" }));
+
+    expect(logs.warn).to.have.lengthOf(1);
+    const output = JSON.stringify(logs);
     expect(output).to.not.include("203.0.113.7");
     expect(output).to.not.include("private-page");
   });
@@ -186,5 +194,161 @@ describe("create-url handler: expiresAt", () => {
       "expiresAt must be an ISO date with a timezone, e.g. 2026-12-31T23:59:59Z",
     );
     expect(ddbMock.commandCalls(PutCommand)).to.have.lengthOf(0);
+  });
+});
+
+// ERROR must mean "something is broken": user mistakes and normal collisions
+// are logged as WARN (or not at all), real failures as ERROR.
+describe("create-url handler: logging", () => {
+  let ddbMock;
+
+  before(() => {
+    ddbMock = mockClient(DynamoDBDocumentClient);
+  });
+
+  beforeEach(() => {
+    ddbMock.reset();
+  });
+
+  after(() => {
+    ddbMock.restore();
+  });
+
+  silenceConsole();
+
+  it("logs a 400 (bad input) as WARN, not ERROR", async () => {
+    const logs = recordConsole();
+
+    await post({ url: "not-a-url" });
+
+    expect(logs.error).to.have.lengthOf(0);
+    expect(logs.warn).to.deep.equal([["[create-url] 400: Invalid URL format"]]);
+  });
+
+  it("logs a taken custom code (409) as one WARN line only", async () => {
+    ddbMock.on(PutCommand).rejects(conditionalCheckFailed());
+    const logs = recordConsole();
+
+    await post({ url: "https://example.com", customCode: "promo" });
+
+    expect(logs.error).to.have.lengthOf(0);
+    expect(logs.warn).to.deep.equal([["[create-url] 409: Custom code already taken"]]);
+  });
+
+  it("logs nothing when a random-code collision is retried successfully", async () => {
+    ddbMock.on(PutCommand).rejectsOnce(conditionalCheckFailed()).resolves({});
+    const logs = recordConsole();
+
+    const res = await post({ url: "https://example.com" });
+
+    expect(res.statusCode).to.equal(201);
+    expect(logs.error).to.have.lengthOf(0);
+    expect(logs.warn).to.have.lengthOf(0);
+  });
+
+  it("logs a real DynamoDB failure (500) as ERROR", async () => {
+    ddbMock.on(PutCommand).rejects(new Error("DynamoDB unavailable"));
+    const logs = recordConsole();
+
+    const res = await post({ url: "https://example.com" });
+
+    expect(res.statusCode).to.equal(500);
+    expect(logs.warn).to.have.lengthOf(0);
+    expect(logs.error.map((args) => args[0])).to.deep.equal([
+      "[DynamoDB ERROR]",
+      "[create-url] Unexpected error:",
+    ]);
+  });
+
+  it("logs giving up after 5 collisions (500) as ERROR", async () => {
+    ddbMock.on(PutCommand).rejects(conditionalCheckFailed());
+    const logs = recordConsole();
+
+    await post({ url: "https://example.com" });
+
+    expect(logs.error).to.have.lengthOf(1);
+    expect(logs.error[0][0]).to.equal("[create-url] Unexpected error:");
+  });
+});
+
+// A 500 hides the real error, so the Lambda request ID is what a caller can
+// report; the same ID must be in the ERROR line so we can find it.
+describe("create-url handler: request ID", () => {
+  const context = { awsRequestId: "req-123" };
+  const postWithContext = (body) => main({ body: JSON.stringify(body) }, context);
+  let ddbMock;
+
+  before(() => {
+    ddbMock = mockClient(DynamoDBDocumentClient);
+  });
+
+  beforeEach(() => {
+    ddbMock.reset();
+  });
+
+  after(() => {
+    ddbMock.restore();
+  });
+
+  silenceConsole();
+
+  it("returns the request ID in a 500 and logs it in the ERROR line", async () => {
+    ddbMock.on(PutCommand).rejects(new Error("DynamoDB unavailable"));
+    const logs = recordConsole();
+
+    const res = await postWithContext({ url: "https://example.com" });
+
+    expect(res.statusCode).to.equal(500);
+    expect(parseBody(res)).to.deep.equal({
+      error: "Internal Server Error",
+      requestId: "req-123",
+    });
+    expect(logs.error.map((args) => args[0])).to.include(
+      "[create-url] Unexpected error (requestId=req-123):",
+    );
+  });
+
+  it("returns the request ID after 5 collisions (500)", async () => {
+    ddbMock.on(PutCommand).rejects(conditionalCheckFailed());
+
+    const res = await postWithContext({ url: "https://example.com" });
+
+    expect(res.statusCode).to.equal(500);
+    expect(parseBody(res)).to.deep.equal({
+      error: "Failed to generate unique short code",
+      requestId: "req-123",
+    });
+  });
+
+  [
+    ["a 400 (bad input)", { url: "not-a-url" }, 400],
+    ["a 409 (code taken)", { url: "https://example.com", customCode: "promo" }, 409],
+  ].forEach(([label, body, statusCode]) => {
+    it(`does not return the request ID in ${label}`, async () => {
+      ddbMock.on(PutCommand).rejects(conditionalCheckFailed());
+
+      const res = await postWithContext(body);
+
+      expect(res.statusCode).to.equal(statusCode);
+      expect(parseBody(res)).to.not.have.property("requestId");
+    });
+  });
+
+  it("does not return the request ID in a 201", async () => {
+    ddbMock.on(PutCommand).resolves({});
+
+    const res = await postWithContext({ url: "https://example.com" });
+
+    expect(res.statusCode).to.equal(201);
+    expect(parseBody(res)).to.not.have.property("requestId");
+  });
+
+  it("still returns a clean 500 when there is no context", async () => {
+    ddbMock.on(PutCommand).rejects(new Error("DynamoDB unavailable"));
+
+    const res = await post({ url: "https://example.com" });
+
+    expect(res.statusCode).to.equal(500);
+    expect(parseBody(res)).to.deep.equal({ error: "Internal Server Error" });
   });
 });

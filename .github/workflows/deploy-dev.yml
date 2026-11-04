@@ -7,6 +7,12 @@ jobs:
   deploy:
     name: Deploy to AWS (Dev)
     runs-on: ubuntu-latest
+    # Only reviewed code reaches dev: run from any other branch, the job is
+    # skipped. A branch could delete this line in its own copy of the workflow,
+    # so the real lock is the dev environment's "Deployment branches" rule in
+    # GitHub settings (main and develop only), and the AWS role trusts only
+    # environment:dev.
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
     environment: dev
     # id-token: write lets GitHub issue this job a short-lived OIDC token, which
     # AWS swaps for temporary credentials (no stored AWS keys). Setting

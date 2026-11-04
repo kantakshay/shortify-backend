@@ -18,7 +18,7 @@ module.exports = [
 
   // Tests run under mocha (describe, it, before, ...)
   {
-    files: ["**/test/**/*.js"],
+    files: ["**/test/**/*.js", "integration/**/*.js"],
     languageOptions: {
       globals: { ...globals.mocha },
     },
