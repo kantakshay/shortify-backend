@@ -57,6 +57,22 @@ describe("shared log helper: logHandlerError", () => {
     expect(calls.error[0][1]).to.equal(err);
   });
 
+  it("puts the request ID in the ERROR line, so it matches the 500 response", () => {
+    const err = new Error("AccessDeniedException");
+
+    logHandlerError("redirect-url", err, "req-123");
+
+    expect(calls.error).to.have.lengthOf(1);
+    expect(calls.error[0][0]).to.equal("[redirect-url] Unexpected error (requestId=req-123):");
+    expect(calls.error[0][1]).to.equal(err);
+  });
+
+  it("keeps the WARN line unchanged when a request ID is given", () => {
+    logHandlerError("analytics", errorWithStatus("URL not found", 404), "req-123");
+
+    expect(calls.warn).to.deep.equal([["[analytics] 404: URL not found"]]);
+  });
+
   it("logs an expected 500 as ERROR", () => {
     logHandlerError("create-url", errorWithStatus("Failed to generate unique short code", 500));
 

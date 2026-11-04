@@ -5,7 +5,9 @@ const { logHandlerError } = require("../../shared/log");
 // Prefix for this Lambda's log lines, e.g. "[create-url] 400: Invalid URL format"
 const LAMBDA_NAME = "create-url";
 
-exports.main = async (event) => {
+exports.main = async (event, context) => {
+  // Lambda's ID for this invocation; returned in 500s so a caller can report it
+  const requestId = context?.awsRequestId;
   let body;
 
   try {
@@ -24,8 +26,8 @@ exports.main = async (event) => {
 
     return jsonResponse(201, result);
   } catch (err) {
-    logHandlerError(LAMBDA_NAME, err);
+    logHandlerError(LAMBDA_NAME, err, requestId);
 
-    return errorToResponse(err);
+    return errorToResponse(err, requestId);
   }
 };

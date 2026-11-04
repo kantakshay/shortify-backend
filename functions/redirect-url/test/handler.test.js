@@ -162,3 +162,68 @@ describe("redirect-url handler: logging", () => {
     expect(logs.error[0][0]).to.equal("[DynamoDB ERROR - incrementClicks]");
   });
 });
+
+// A 500 hides the real error, so the Lambda request ID is what a caller can
+// report; the same ID must be in the ERROR line so we can find it.
+describe("redirect-url handler: request ID", () => {
+  const context = { awsRequestId: "req-123" };
+  let ddbMock;
+
+  before(() => {
+    ddbMock = mockClient(DynamoDBDocumentClient);
+  });
+
+  beforeEach(() => {
+    ddbMock.reset();
+  });
+
+  after(() => {
+    ddbMock.restore();
+  });
+
+  silenceConsole();
+
+  it("returns the request ID in a 500 and logs it in the ERROR line", async () => {
+    ddbMock.on(GetCommand).rejects(new Error("DynamoDB unavailable"));
+    const logs = recordConsole();
+
+    const res = await main({ pathParameters: { short_code: "abc123" } }, context);
+
+    expect(res.statusCode).to.equal(500);
+    expect(parseBody(res)).to.deep.equal({
+      error: "Internal Server Error",
+      requestId: "req-123",
+    });
+    expect(logs.error[0][0]).to.equal("[redirect-url] Unexpected error (requestId=req-123):");
+  });
+
+  it("does not return the request ID in a 404", async () => {
+    ddbMock.on(GetCommand).resolves({});
+
+    const res = await main({ pathParameters: { short_code: "nope" } }, context);
+
+    expect(res.statusCode).to.equal(404);
+    expect(parseBody(res)).to.deep.equal({ error: "URL not found" });
+  });
+
+  it("does not change a successful redirect", async () => {
+    ddbMock.on(GetCommand).resolves({
+      Item: { short_code: "abc123", long_url: "https://example.com" },
+    });
+    ddbMock.on(UpdateCommand).resolves({});
+
+    const res = await main({ pathParameters: { short_code: "abc123" } }, context);
+
+    expect(res.statusCode).to.equal(302);
+    expect(res).to.not.have.property("body");
+  });
+
+  it("still returns a clean 500 when there is no context", async () => {
+    ddbMock.on(GetCommand).rejects(new Error("DynamoDB unavailable"));
+
+    const res = await main({ pathParameters: { short_code: "abc123" } });
+
+    expect(res.statusCode).to.equal(500);
+    expect(parseBody(res)).to.deep.equal({ error: "Internal Server Error" });
+  });
+});

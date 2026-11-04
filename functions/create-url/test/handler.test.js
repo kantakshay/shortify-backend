@@ -270,3 +270,85 @@ describe("create-url handler: logging", () => {
     expect(logs.error[0][0]).to.equal("[create-url] Unexpected error:");
   });
 });
+
+// A 500 hides the real error, so the Lambda request ID is what a caller can
+// report; the same ID must be in the ERROR line so we can find it.
+describe("create-url handler: request ID", () => {
+  const context = { awsRequestId: "req-123" };
+  const postWithContext = (body) => main({ body: JSON.stringify(body) }, context);
+  let ddbMock;
+
+  before(() => {
+    ddbMock = mockClient(DynamoDBDocumentClient);
+  });
+
+  beforeEach(() => {
+    ddbMock.reset();
+  });
+
+  after(() => {
+    ddbMock.restore();
+  });
+
+  silenceConsole();
+
+  it("returns the request ID in a 500 and logs it in the ERROR line", async () => {
+    ddbMock.on(PutCommand).rejects(new Error("DynamoDB unavailable"));
+    const logs = recordConsole();
+
+    const res = await postWithContext({ url: "https://example.com" });
+
+    expect(res.statusCode).to.equal(500);
+    expect(parseBody(res)).to.deep.equal({
+      error: "Internal Server Error",
+      requestId: "req-123",
+    });
+    expect(logs.error.map((args) => args[0])).to.include(
+      "[create-url] Unexpected error (requestId=req-123):",
+    );
+  });
+
+  it("returns the request ID after 5 collisions (500)", async () => {
+    ddbMock.on(PutCommand).rejects(conditionalCheckFailed());
+
+    const res = await postWithContext({ url: "https://example.com" });
+
+    expect(res.statusCode).to.equal(500);
+    expect(parseBody(res)).to.deep.equal({
+      error: "Failed to generate unique short code",
+      requestId: "req-123",
+    });
+  });
+
+  [
+    ["a 400 (bad input)", { url: "not-a-url" }, 400],
+    ["a 409 (code taken)", { url: "https://example.com", customCode: "promo" }, 409],
+  ].forEach(([label, body, statusCode]) => {
+    it(`does not return the request ID in ${label}`, async () => {
+      ddbMock.on(PutCommand).rejects(conditionalCheckFailed());
+
+      const res = await postWithContext(body);
+
+      expect(res.statusCode).to.equal(statusCode);
+      expect(parseBody(res)).to.not.have.property("requestId");
+    });
+  });
+
+  it("does not return the request ID in a 201", async () => {
+    ddbMock.on(PutCommand).resolves({});
+
+    const res = await postWithContext({ url: "https://example.com" });
+
+    expect(res.statusCode).to.equal(201);
+    expect(parseBody(res)).to.not.have.property("requestId");
+  });
+
+  it("still returns a clean 500 when there is no context", async () => {
+    ddbMock.on(PutCommand).rejects(new Error("DynamoDB unavailable"));
+
+    const res = await post({ url: "https://example.com" });
+
+    expect(res.statusCode).to.equal(500);
+    expect(parseBody(res)).to.deep.equal({ error: "Internal Server Error" });
+  });
+});
