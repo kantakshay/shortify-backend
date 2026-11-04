@@ -41,6 +41,48 @@ describe("shared response helpers", () => {
       expect(res.statusCode).to.equal(500);
       expect(JSON.parse(res.body)).to.deep.equal({ error: "Internal Server Error" });
     });
+
+    // A 500 hides the real error, so the request ID is the only thing a caller
+    // can report to help us find the exact log lines.
+    describe("request ID", () => {
+      it("adds the request ID to an unexpected 500", () => {
+        const res = errorToResponse(new Error("AccessDeniedException"), "req-123");
+
+        expect(res.statusCode).to.equal(500);
+        expect(JSON.parse(res.body)).to.deep.equal({
+          error: "Internal Server Error",
+          requestId: "req-123",
+        });
+      });
+
+      it("adds the request ID to an expected 500", () => {
+        const err = new Error("Failed to generate unique short code");
+        err.statusCode = 500;
+
+        expect(JSON.parse(errorToResponse(err, "req-123").body)).to.deep.equal({
+          error: "Failed to generate unique short code",
+          requestId: "req-123",
+        });
+      });
+
+      [400, 404, 409].forEach((statusCode) => {
+        it(`does not add the request ID to a ${statusCode}`, () => {
+          const err = new Error("Expected problem");
+          err.statusCode = statusCode;
+
+          expect(JSON.parse(errorToResponse(err, "req-123").body)).to.deep.equal({
+            error: "Expected problem",
+          });
+        });
+      });
+
+      it("leaves the field out when there is no request ID", () => {
+        const body = JSON.parse(errorToResponse(new Error("boom")).body);
+
+        expect(body).to.deep.equal({ error: "Internal Server Error" });
+        expect(body).to.not.have.property("requestId");
+      });
+    });
   });
 
   describe("redirectResponse", () => {

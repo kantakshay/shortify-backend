@@ -147,6 +147,20 @@ Response (`200`):
 
 ---
 
+### Errors
+
+Errors are JSON: `{ "error": "<message>" }`. A `4xx` message says what to fix (e.g. `Invalid URL format`).
+
+A `5xx` hides the real cause and adds the request ID instead:
+
+```json
+{ "error": "Internal Server Error", "requestId": "8f5c2a1e-3b7d-4c6e-9a1f-2d4e6b8c0a12" }
+```
+
+Quote the `requestId` when reporting a problem: it's the Lambda request ID, so searching for it in the function's CloudWatch log group ("Search all log streams") shows every log line of that request.
+
+---
+
 ## 🚀 Deployment
 
 ### Manual Deployment via GitHub Actions
