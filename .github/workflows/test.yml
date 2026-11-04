@@ -2,10 +2,22 @@ name: Tests
 
 # Runs lint, the format check and the unit tests on every pull request and on
 # pushes to the main branches. DynamoDB is mocked, so no AWS secrets are needed.
+#
+# Pull requests use pull_request_target, so GitHub runs THIS FILE as it is on
+# the base branch (develop/main), not the PR's copy: a PR can't delete or
+# weaken these steps for its own run. The steps still test the PR's code (the
+# checkout below picks the PR's head commit).
+#
+# pull_request_target runs PR code next to the base repo's credentials, so
+# this file must stay safe for code we don't trust:
+# - the token stays read-only (permissions below);
+# - no secrets are used anywhere in this file;
+# - no caching (a PR could poison a cache that main/develop would reuse);
+# - checkout doesn't store the token in .git (persist-credentials: false).
 on:
   push:
     branches: [main, develop]
-  pull_request:
+  pull_request_target:
 
 # Least privilege for the built-in GITHUB_TOKEN: tests only need to read the
 # code, so even a compromised step can't push commits or edit PRs.
@@ -18,8 +30,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # On a PR, pull_request_target would check out the base branch; test the
+      # PR's head commit instead. On a push there's no PR, so use the pushed commit.
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -54,6 +71,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v7

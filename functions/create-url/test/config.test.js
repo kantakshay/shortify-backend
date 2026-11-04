@@ -249,8 +249,47 @@ describe("create-url config (serverless/functions.yml)", () => {
     );
   });
 
+  // pull_request_target runs the base branch's copy of test.yml, so a PR can't
+  // remove or weaken the checks for its own run.
+  describe("CI runs from the base branch", () => {
+    const text = fs.readFileSync(
+      path.join(__dirname, "../../../.github/workflows/test.yml"),
+      "utf8",
+    );
+    const checkouts = Object.values(testWorkflow.jobs).map((job) =>
+      job.steps.find((s) => s.uses && s.uses.startsWith("actions/checkout@")),
+    );
+
+    it("uses pull_request_target, not pull_request, for pull requests", () => {
+      expect(testWorkflow.on).to.have.property("pull_request_target");
+      expect(testWorkflow.on).to.not.have.property("pull_request");
+      expect(testWorkflow.on.push.branches).to.deep.equal(["main", "develop"]);
+    });
+
+    // Without the ref, pull_request_target would test the base branch, not the PR
+    it("checks out the PR's head commit (or the pushed commit) in every job", () => {
+      expect(checkouts).to.have.length(Object.keys(testWorkflow.jobs).length);
+      checkouts.forEach((step) =>
+        expect(step.with.ref).to.equal("${{ github.event.pull_request.head.sha || github.sha }}"),
+      );
+    });
+
+    it("doesn't leave the token in .git where PR code could read it", () => {
+      checkouts.forEach((step) => expect(step.with["persist-credentials"]).to.equal(false));
+    });
+
+    // PR code runs with the base repo's context, so nothing worth stealing may be in reach
+    it("uses no secrets and no caches", () => {
+      expect(text).to.not.match(/secrets\./);
+      expect(text).to.not.include("actions/cache");
+      Object.values(testWorkflow.jobs)
+        .flatMap((job) => job.steps)
+        .filter((s) => s.uses && s.uses.startsWith("actions/setup-node@"))
+        .forEach((s) => expect(s.with).to.not.have.property("cache"));
+    });
+  });
+
   it("runs lint, the format check and the unit tests on pull requests", () => {
-    expect(testWorkflow.on).to.have.property("pull_request");
     expect(testWorkflow.jobs.test.steps.map((s) => s.run)).to.include.members([
       "npm run lint",
       "npm run format:check",

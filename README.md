@@ -223,6 +223,10 @@ DynamoDB Local doesn't check IAM permissions, never throttles, has no partitions
 
 End-to-end checks run against the deployed `dev` API.
 
+### CI on pull requests
+
+The **Tests** workflow uses `pull_request_target`, so GitHub runs the copy of `test.yml` from the **base branch** (`develop`/`main`) and checks out the PR's head commit to test it. A PR can't remove or weaken the CI steps for its own run, and a change to `test.yml` only takes effect after merging. Because PR code runs with the base repo's context, the workflow has a read-only token and uses no secrets or caches.
+
 ---
 
 ## 🔐 Environment Variables
