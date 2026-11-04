@@ -37,3 +37,33 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+  # The unit tests mock DynamoDB, so they can't tell whether DynamoDB really
+  # enforces our condition and update expressions. This runs the lambda code
+  # against DynamoDB Local, started by GitHub as a service container.
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-latest
+
+    services:
+      dynamodb:
+        image: amazon/dynamodb-local:3.3.2
+        ports:
+          - 8100:8000
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run integration tests
+        run: npm run test:integration
+        env:
+          DYNAMODB_ENDPOINT: http://localhost:8100

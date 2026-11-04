@@ -50,6 +50,26 @@ describe("shared dynamo client", () => {
     expect(await regionOf(dynamo)).to.equal("ap-south-1");
   });
 
+  // Production must always use the real DynamoDB: the endpoint override exists
+  // only for the integration tests (DynamoDB Local).
+  it("uses AWS's own endpoint when DYNAMODB_ENDPOINT is not set", () => {
+    const { dynamo } = loadWith({ TABLE_NAME: "my-table", DYNAMODB_ENDPOINT: undefined });
+
+    expect(dynamo.config.endpoint).to.equal(undefined);
+  });
+
+  it("connects to DYNAMODB_ENDPOINT when it is set (DynamoDB Local)", async () => {
+    const { dynamo } = loadWith({
+      TABLE_NAME: "my-table",
+      DYNAMODB_ENDPOINT: "http://localhost:8100",
+    });
+
+    const endpoint = await dynamo.config.endpoint();
+    expect(`${endpoint.protocol}//${endpoint.hostname}:${endpoint.port}`).to.equal(
+      "http://localhost:8100",
+    );
+  });
+
   // Every Lambda now refuses to start without a table name (analytics never checked).
   it("throws at load time when TABLE_NAME is not set", () => {
     expect(() => loadWith({ TABLE_NAME: undefined })).to.throw("TABLE_NAME is not defined");

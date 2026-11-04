@@ -233,6 +233,39 @@ describe("create-url config (serverless/functions.yml)", () => {
       "npm test",
     ]);
   });
+
+  // The data-safety rules (no overwrites, no junk items, no lost clicks) live in
+  // DynamoDB expressions, which only a real DynamoDB engine can check.
+  describe("integration tests", () => {
+    const packageJson = JSON.parse(
+      fs.readFileSync(path.join(__dirname, "../../../package.json"), "utf8"),
+    );
+    const job = testWorkflow.jobs.integration;
+
+    it("runs against a pinned DynamoDB Local service container on every pull request", () => {
+      expect(job.services.dynamodb.image).to.match(/^amazon\/dynamodb-local:\d+\.\d+\.\d+$/);
+      expect(job.services.dynamodb.ports).to.deep.equal(["8100:8000"]);
+    });
+
+    it("installs with npm ci and runs npm run test:integration against localhost:8100", () => {
+      const runs = job.steps.map((s) => s.run);
+      const step = job.steps.find((s) => s.run === "npm run test:integration");
+
+      expect(runs).to.include("npm ci");
+      expect(step.env).to.deep.equal({ DYNAMODB_ENDPOINT: "http://localhost:8100" });
+    });
+
+    // Local runs and CI must test against the same DynamoDB Local version
+    it("starts the same DynamoDB Local image and port locally (npm run db:start) as in CI", () => {
+      expect(packageJson.scripts["db:start"]).to.include(job.services.dynamodb.image);
+      expect(packageJson.scripts["db:start"]).to.include(`-p ${job.services.dynamodb.ports[0]}`);
+    });
+
+    it("keeps npm test as the fast mocked suite, without the integration tests", () => {
+      expect(packageJson.scripts.test).to.not.include("integration");
+      expect(packageJson.scripts["test:integration"]).to.include("--require integration/setup.js");
+    });
+  });
 });
 
 describe("url table config (serverless/dynamodb-resources.yml)", () => {

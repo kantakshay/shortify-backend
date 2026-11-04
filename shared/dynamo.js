@@ -10,7 +10,12 @@ if (!TABLE_NAME) {
 }
 
 const dynamo = DynamoDBDocumentClient.from(
-  new DynamoDBClient({ region: process.env.AWS_REGION || "ap-south-1" }),
+  new DynamoDBClient({
+    region: process.env.AWS_REGION || "ap-south-1",
+    // Only the integration tests set this (to DynamoDB Local). It is never set
+    // in Lambda, so production always talks to the real DynamoDB.
+    ...(process.env.DYNAMODB_ENDPOINT && { endpoint: process.env.DYNAMODB_ENDPOINT }),
+  }),
 );
 
 module.exports = { dynamo, TABLE_NAME };
