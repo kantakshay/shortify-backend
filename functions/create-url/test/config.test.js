@@ -91,12 +91,32 @@ describe("create-url config (serverless/functions.yml)", () => {
     expect(testIndex).to.be.below(deployIndex);
   });
 
-  // Deploys stay manual and allowed from any branch; they're recorded under
-  // the "dev" GitHub Environment, so its history shows what ran on dev.
-  it("is a manual deploy from any branch, through the dev environment", () => {
-    expect(workflow.on).to.have.property("workflow_dispatch");
-    expect(workflow.jobs.deploy).to.not.have.property("if");
-    expect(workflow.jobs.deploy.environment).to.equal("dev");
+  // Security: only reviewed code (merged into main or develop) reaches AWS, and
+  // feature branches can't overwrite what runs on dev.
+  describe("who can deploy", () => {
+    const allowedRefs = (condition) => [...condition.matchAll(/github\.ref == '([^']+)'/g)];
+
+    it("is a manual deploy", () => {
+      expect(workflow.on).to.have.property("workflow_dispatch");
+    });
+
+    it("deploys only from main and develop", () => {
+      const condition = workflow.jobs.deploy.if;
+
+      expect(allowedRefs(condition).map((m) => m[1])).to.have.members([
+        "refs/heads/main",
+        "refs/heads/develop",
+      ]);
+      // Only "==" checks joined with "||": nothing like != or contains() that
+      // could let another branch through
+      expect(condition.replace(/github\.ref == '[^']+'/g, "").trim()).to.equal("||");
+    });
+
+    // The environment's branch rule (GitHub settings) and the AWS role's trust
+    // policy (environment:dev) both depend on the job running in "dev"
+    it("runs in the dev environment, whose branch rule is the real lock", () => {
+      expect(workflow.jobs.deploy.environment).to.equal("dev");
+    });
   });
 
   // npm install can pick newer versions than package-lock.json; npm ci
@@ -186,11 +206,15 @@ describe("create-url config (serverless/functions.yml)", () => {
       "## Why",
       "## How I tested",
       "- [ ] `npm test` passes locally",
-      "- [ ] Deployed this branch to dev and tested in Postman",
+      "- [ ] `npm run test:integration` passes locally (if DynamoDB code changed)",
       "## After merging",
-      "- [ ] Redeployed `develop` to dev",
+      "- [ ] Redeployed `develop` to dev (the deployment summary shows the merge commit)",
+      "- [ ] Tested on dev in Postman",
       "## Risks / follow-ups",
     ].forEach((line) => expect(template).to.include(line));
+
+    // Feature branches can't be deployed any more, so the template must not ask for it
+    expect(template).to.not.include("Deployed this branch");
   });
 
   // short_url is built from BASE_URL, which must be this stage's API Gateway address.
