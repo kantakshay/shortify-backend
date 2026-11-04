@@ -1,6 +1,11 @@
 Resources:
   UrlTable:
     Type: AWS::DynamoDB::Table
+    # The table holds every link ever made, so CloudFormation must never delete it:
+    # Retain keeps it on `serverless remove`, if it leaves the template, or if a
+    # change (new name or key) needs a replacement table. See CLAUDE.md.
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       TableName: ${self:provider.environment.TABLE_NAME}
       AttributeDefinitions:
@@ -10,5 +15,10 @@ Resources:
         - AttributeName: short_code
           KeyType: HASH
       BillingMode: PAY_PER_REQUEST
+      # Nobody (console, CLI or CloudFormation) can delete the table until this is turned off.
+      DeletionProtectionEnabled: true
+      # Continuous backups: restore the table to any second in the last 35 days.
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
       # No TTL on purpose: expired links are kept as retired records so their
       # codes can never be claimed again. Readers treat them as not found.

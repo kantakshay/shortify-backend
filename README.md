@@ -162,6 +162,16 @@ The workflow logs in to AWS with **OIDC**: GitHub gives each run a short-lived t
 - the variable `AWS_DEPLOY_ROLE_ARN` (the role's ARN) on the `dev` environment;
 - the secret `SERVERLESS_ACCESS_KEY` (Serverless Framework v4 sign-in).
 
+### The table is protected
+
+The DynamoDB table holds every link, so it can't be deleted by accident:
+
+- **`DeletionPolicy` / `UpdateReplacePolicy: Retain`**: CloudFormation keeps the table on `serverless remove`, if it disappears from the template, or if a change (a new name or key) needs a new table.
+- **Deletion protection**: the table refuses to be deleted, from the console, the CLI or CloudFormation, until protection is turned off.
+- **Point-in-time recovery**: continuous backups; the table can be restored to any second in the last 35 days (into a new table). It costs about $0.20 per GB per month.
+
+Because of this, `serverless remove` deletes the Lambdas and the API but **leaves the table**, and the next deploy fails because the table already exists. To deploy again, either import the existing table into the stack (CloudFormation → the stack → Import resources), or, to really start fresh, turn off deletion protection and delete the table by hand first.
+
 ---
 
 ## 🧪 Testing
