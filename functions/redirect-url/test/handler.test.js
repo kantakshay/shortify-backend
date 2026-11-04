@@ -27,7 +27,7 @@ describe("redirect-url handler (GET /{short_code})", () => {
 
   it("returns 302 with the long URL in Location and CORS headers", async () => {
     ddbMock.on(GetCommand).resolves({
-      Item: { short_code: "abc123", long_url: "https://example.com/page" },
+      Item: { short_code: "abc123", long_url: "https://example.com/" },
     });
     ddbMock.on(UpdateCommand).resolves({});
 
