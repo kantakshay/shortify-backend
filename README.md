@@ -197,6 +197,28 @@ npm test                    # all lambdas
 npm run test:create-url     # one lambda
 ```
 
+### Integration tests (DynamoDB Local)
+
+The unit tests mock DynamoDB, so they can't tell whether DynamoDB really enforces our condition and update expressions. The integration tests run the real code against **DynamoDB Local** (AWS's local copy of the DynamoDB engine, in Docker) and check that:
+
+- the same code can't be saved twice, and the first link is kept;
+- a click on an unknown code creates nothing;
+- an expired link stays, and its code can't be taken as a custom code (`409`);
+- 50 clicks at the same moment are counted as exactly 50;
+- a link can be created, opened and reported end to end.
+
+```
+npm run db:start           # starts DynamoDB Local in Docker (Docker Desktop must be running)
+npm run test:integration
+npm run db:stop            # stops it; its data is in memory, so each start is clean
+```
+
+DynamoDB Local is reached at `http://localhost:8100` (port 8100 on your machine maps to the container's port 8000), so it doesn't clash with anything already using port 8000. To use another port, set `DYNAMODB_ENDPOINT`.
+
+They create their own table (`url-shortener-integration`) and delete it afterwards, always use fake credentials, and refuse to run against anything but `localhost`. In CI they run in the **Integration tests** job, with DynamoDB Local as a service container. `npm test` stays the fast, mocked suite.
+
+DynamoDB Local doesn't check IAM permissions, never throttles, has no partitions, and always returns the latest data, so those are covered elsewhere (the config tests check IAM).
+
 End-to-end checks run against the deployed `dev` API.
 
 ---
