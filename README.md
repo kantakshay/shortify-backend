@@ -166,9 +166,11 @@ Quote the `requestId` when reporting a problem: it's the Lambda request ID, so s
 ### Manual Deployment via GitHub Actions
 
 1. Go to **Actions** tab
-2. Select workflow
+2. Select the **API Pipeline** workflow
 3. Click **Run workflow**
-4. Enter branch name
+4. Pick **`develop`** (or `main`)
+
+Only `main` and `develop` can be deployed: from any other branch the deploy job is skipped, and the GitHub Environment `dev` allows only those two branches (Settings → Environments → `dev` → Deployment branches). Feature branches are checked by the unit and integration tests on their pull request, then deployed after merging. Deploy **after** the merge, and check that the deployment summary shows the merge commit.
 
 The workflow logs in to AWS with **OIDC**: GitHub gives each run a short-lived token, and AWS swaps it for temporary credentials of a deploy role. No AWS keys are stored in GitHub. It needs:
 
