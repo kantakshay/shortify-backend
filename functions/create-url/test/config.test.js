@@ -245,4 +245,32 @@ describe("url table config (serverless/dynamodb-resources.yml)", () => {
   it("does not enable TTL", () => {
     expect(resources.Resources.UrlTable.Properties).to.not.have.property("TimeToLiveSpecification");
   });
+
+  // Data safety: the table holds every link, so no deploy, remove or click in the
+  // console may delete it, and bad writes can be rolled back.
+  describe("protection from deletion and data loss", () => {
+    const table = resources.Resources.UrlTable;
+
+    it("keeps the table when it leaves the stack (serverless remove, removed from template)", () => {
+      expect(table.DeletionPolicy).to.equal("Retain");
+    });
+
+    it("keeps the old table when a change needs a replacement table", () => {
+      expect(table.UpdateReplacePolicy).to.equal("Retain");
+    });
+
+    it("turns on DynamoDB deletion protection", () => {
+      expect(table.Properties.DeletionProtectionEnabled).to.equal(true);
+    });
+
+    it("turns on point-in-time recovery (continuous backups)", () => {
+      expect(table.Properties.PointInTimeRecoverySpecification).to.deep.equal({
+        PointInTimeRecoveryEnabled: true,
+      });
+    });
+
+    it("is still included in serverless.yml, so a refactor can't drop the table", () => {
+      expect(serverlessConfig.resources).to.include("${file(./serverless/dynamodb-resources.yml)}");
+    });
+  });
 });
