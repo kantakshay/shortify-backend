@@ -24,7 +24,11 @@ const MAX_ATTEMPTS = 5;
 // route from serverless/functions.yml here (config.test.js checks this).
 const RESERVED_CODES = new Set(["shorten", "analytics"]);
 
-// Saves the URL under the caller's custom code; 409 if the code is taken
+// Saves the URL under the caller's custom code; 409 if the code is taken.
+// Codes are never reused, so an expired link's code is refused too, while
+// opening it says "not found". One message covers both cases, so it doesn't
+// look like a contradiction, and it doesn't reveal which codes existed before
+// (telling them apart would also need an extra read on every conflict).
 async function saveCustomCode(url, customCode, expiresAt) {
   const code = validateCustomCode(customCode);
 
@@ -33,7 +37,7 @@ async function saveCustomCode(url, customCode, expiresAt) {
     return code;
   } catch (err) {
     if (err.name === "ConditionalCheckFailedException") {
-      const conflict = new Error("Custom code already taken");
+      const conflict = new Error("This code is taken or was used before");
       conflict.statusCode = 409;
       throw conflict;
     }

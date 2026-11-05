@@ -68,7 +68,8 @@ describe("create-url handler (POST /shorten)", () => {
 
     expect(res.statusCode).to.equal(409);
     expectCors(res);
-    expect(parseBody(res).error).to.equal("Custom code already taken");
+    // True for a live link and for an expired one (codes are never reused)
+    expect(parseBody(res).error).to.equal("This code is taken or was used before");
   });
 
   // Security: internal error details must not reach the caller.
@@ -232,7 +233,7 @@ describe("create-url handler: logging", () => {
     await post({ url: "https://example.com", customCode: "promo" });
 
     expect(logs.error).to.have.lengthOf(0);
-    expect(logs.warn).to.deep.equal([["[create-url] 409: Custom code already taken"]]);
+    expect(logs.warn).to.deep.equal([["[create-url] 409: This code is taken or was used before"]]);
   });
 
   it("logs nothing when a random-code collision is retried successfully", async () => {
