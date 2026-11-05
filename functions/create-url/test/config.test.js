@@ -119,6 +119,72 @@ describe("create-url config (serverless/functions.yml)", () => {
     });
   });
 
+  // "AWS accepted the deploy" isn't "the API works": the last step uses the live
+  // API like a user and checks the table protection, and fails the run otherwise.
+  describe("smoke test after deploying", () => {
+    const steps = workflow.jobs.deploy.steps;
+    const smoke = steps[steps.length - 1];
+
+    it("is the last step", () => {
+      expect(smoke.name).to.equal("Smoke test (dev)");
+    });
+
+    it("stops at the first failure", () => {
+      expect(smoke.run).to.match(/^set -euo pipefail$/m);
+    });
+
+    it("creates a link that expires, so it never stays usable", () => {
+      expect(smoke.run).to.include('-X POST "$API/shorten"');
+      expect(smoke.run).to.include("expiresAt: $exp");
+      expect(smoke.run).to.include("date -u -d '+10 minutes'");
+      expect(smoke.run).to.include('[ "$STATUS" = "201" ]');
+    });
+
+    it("checks the redirect is a 302 to the exact URL, without following it", () => {
+      expect(smoke.run).to.include("%{redirect_url}");
+      expect(smoke.run).to.not.match(/curl[^\n]*(-L|--location)\b/);
+      expect(smoke.run).to.include('[ "$STATUS" = "302" ]');
+      expect(smoke.run).to.include('[ "$LOCATION" = "$TARGET" ]');
+      // A "\n" in -w came back as "\r\n" from curl on Windows, and the stray \r
+      // made a correct redirect look wrong. Split the output in bash instead.
+      expect(smoke.run).to.include("-w '%{http_code} %{redirect_url}' ");
+    });
+
+    // Analytics reads are eventually consistent, so the click may take a moment
+    it("checks analytics returns 200 and counted the click, retrying a few times", () => {
+      expect(smoke.run).to.include('"$API/analytics/$CODE"');
+      expect(smoke.run).to.include('[ "$STATUS" = "200" ]');
+      expect(smoke.run).to.include('[ "$CLICKS" -ge 1 ]');
+      expect(smoke.run).to.match(/for attempt in 1 2 3 4 5; do/);
+    });
+
+    // An old commit's deploy once switched point-in-time recovery off
+    it("checks the real table still has backups and deletion protection on", () => {
+      expect(smoke.env.TABLE_NAME).to.equal(environment.dev.TABLE_NAME);
+      expect(smoke.run).to.include("describe-continuous-backups");
+      expect(smoke.run).to.include('[ "$PITR" = "ENABLED" ]');
+      expect(smoke.run).to.include("Table.DeletionProtectionEnabled");
+      expect(smoke.run).to.include('[ "$PROTECTED" = "True" ]');
+    });
+
+    // The short code comes from the API response and is put into URLs
+    it("only uses a short code made of lowercase letters and digits", () => {
+      expect(smoke.run).to.include('[[ "$CODE" =~ ^[a-z0-9]+$ ]]');
+    });
+
+    it("is valid bash", function () {
+      const { spawnSync } = require("child_process");
+      // Skip where there's no working bash (e.g. Windows with only the WSL stub);
+      // CI runs on Ubuntu, so the check always runs there.
+      const probe = spawnSync("bash", ["-c", "echo ok"], { encoding: "utf8" });
+      if (probe.error || probe.stdout.trim() !== "ok") this.skip();
+
+      const result = spawnSync("bash", ["-n"], { input: smoke.run, encoding: "utf8" });
+      expect(result.stderr).to.equal("");
+      expect(result.status).to.equal(0);
+    });
+  });
+
   // npm install can pick newer versions than package-lock.json; npm ci
   // installs exactly what CI tested.
   it("installs the exact locked dependency versions with npm ci", () => {
@@ -128,9 +194,9 @@ describe("create-url config (serverless/functions.yml)", () => {
     expect(runs).to.not.include("npm install");
   });
 
-  it("ends with a summary of the deployed branch and commit", () => {
+  it("writes a summary of the deployed branch and commit before the smoke test", () => {
     const steps = workflow.jobs.deploy.steps;
-    const summary = steps[steps.length - 1];
+    const summary = steps[steps.length - 2];
 
     expect(summary.name).to.equal("Deployment summary");
     expect(summary.env).to.deep.equal({

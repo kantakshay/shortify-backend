@@ -88,3 +88,64 @@ jobs:
           echo "### Deployed to dev" >> "$GITHUB_STEP_SUMMARY"
           echo "- Branch: \`$BRANCH\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- Commit: \`$COMMIT\`" >> "$GITHUB_STEP_SUMMARY"
+
+      # 9. Smoke test: use the live API like a real user would, and check that
+      #    the table is still protected. "AWS accepted the deploy" doesn't mean
+      #    "the API works"; any mismatch fails the run. The test link expires in
+      #    10 minutes and, like every expired link, stays in the table (codes
+      #    are never reused), so each deploy leaves one harmless retired item.
+      - name: Smoke test (dev)
+        env:
+          TABLE_NAME: url-shortener-dev
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          fail() { echo "Smoke test failed: $*" >&2; exit 1; }
+          CURL="curl -sS --max-time 15 --retry 3 --retry-delay 5"
+
+          API_ID=$(aws apigateway get-rest-apis --query "items[?name=='dev-url-shortener'].id | [0]" --output text)
+          [ -n "$API_ID" ] && [ "$API_ID" != "None" ] || fail "REST API 'dev-url-shortener' not found"
+          API="https://$API_ID.execute-api.ap-south-1.amazonaws.com/dev"
+          TARGET="https://example.com/shortify-smoke-test/$RUN_ID"
+          EXPIRES=$(date -u -d '+10 minutes' +%Y-%m-%dT%H:%M:%SZ)
+
+          # 1. Create a link: expect 201 and a short code
+          BODY=$(jq -n --arg url "$TARGET" --arg exp "$EXPIRES" '{url: $url, expiresAt: $exp}')
+          STATUS=$($CURL -o create.json -w '%{http_code}' -X POST "$API/shorten" \
+            -H 'Content-Type: application/json' -d "$BODY")
+          [ "$STATUS" = "201" ] || fail "POST /shorten returned $STATUS: $(cat create.json)"
+          CODE=$(jq -r '.short_code' create.json)
+          [[ "$CODE" =~ ^[a-z0-9]+$ ]] || fail "unexpected short_code: $CODE"
+          echo "Created $CODE"
+
+          # 2. Open it without following the redirect: expect 302 to the exact URL
+          OUT=$($CURL -o /dev/null -w '%{http_code} %{redirect_url}' "$API/$CODE")
+          STATUS=${OUT%% *}
+          LOCATION=${OUT#* }
+          [ "$STATUS" = "302" ] || fail "GET /$CODE returned $STATUS"
+          [ "$LOCATION" = "$TARGET" ] || fail "GET /$CODE redirected to '$LOCATION', expected '$TARGET'"
+          echo "Redirect OK"
+
+          # 3. Analytics: expect 200 and the click counted. The read is eventually
+          #    consistent, so a click can take a moment to show; try a few times.
+          for attempt in 1 2 3 4 5; do
+            STATUS=$($CURL -o analytics.json -w '%{http_code}' "$API/analytics/$CODE")
+            [ "$STATUS" = "200" ] || fail "GET /analytics/$CODE returned $STATUS: $(cat analytics.json)"
+            CLICKS=$(jq -r '.clicks' analytics.json)
+            [ "$CLICKS" -ge 1 ] 2>/dev/null && break
+            [ "$attempt" = "5" ] && fail "click not counted: clicks=$CLICKS"
+            sleep 2
+          done
+          echo "Analytics OK (clicks=$CLICKS)"
+
+          # 4. The table must still be protected: an old commit's deploy once
+          #    switched these off.
+          PITR=$(aws dynamodb describe-continuous-backups --table-name "$TABLE_NAME" \
+            --query 'ContinuousBackupsDescription.PointInTimeRecoveryDescription.PointInTimeRecoveryStatus' --output text)
+          [ "$PITR" = "ENABLED" ] || fail "point-in-time recovery is $PITR"
+          PROTECTED=$(aws dynamodb describe-table --table-name "$TABLE_NAME" \
+            --query 'Table.DeletionProtectionEnabled' --output text)
+          [ "$PROTECTED" = "True" ] || fail "deletion protection is $PROTECTED"
+          echo "Table protection OK"
+
+          echo "- Smoke test: passed (\`$CODE\`)" >> "$GITHUB_STEP_SUMMARY"
