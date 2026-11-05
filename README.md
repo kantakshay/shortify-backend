@@ -178,6 +178,17 @@ The workflow logs in to AWS with **OIDC**: GitHub gives each run a short-lived t
 - the variable `AWS_DEPLOY_ROLE_ARN` (the role's ARN) on the `dev` environment;
 - the secret `SERVERLESS_ACCESS_KEY` (Serverless Framework v4 sign-in).
 
+### Smoke test after every deploy
+
+The last step of the deploy uses the live `dev` API like a user would, and fails the run (red) if anything is wrong:
+
+1. `POST /shorten` creates a test link that expires in 10 minutes → expects `201`.
+2. `GET /<code>`, without following the redirect → expects `302` to exactly the test URL.
+3. `GET /analytics/<code>` → expects `200` and `clicks` ≥ 1 (retried a few times, because the read can lag the click by a moment).
+4. The real table still has point-in-time recovery and deletion protection on.
+
+The log says which check failed and what the API returned. The test link stays in the table after it expires (codes are never reused), so each deploy leaves one harmless retired link. A red smoke test means the broken version **is already live** on `dev`; it tells you straight away, it doesn't roll back. The deploy role needs `dynamodb:DescribeTable` and `dynamodb:DescribeContinuousBackups` on the table for step 4.
+
 ### The table is protected
 
 The DynamoDB table holds every link, so it can't be deleted by accident:
