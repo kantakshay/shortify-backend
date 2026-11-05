@@ -30,7 +30,7 @@ describe("shared log helper: logHandlerError", () => {
   [
     ["a 400", "Invalid URL format", 400],
     ["a 404", "URL not found", 404],
-    ["a 409", "Custom code already taken", 409],
+    ["a 409", "This code is taken or was used before", 409],
   ].forEach(([label, message, statusCode]) => {
     it(`logs ${label} as one WARN line with the status and message`, () => {
       logHandlerError("create-url", errorWithStatus(message, statusCode));
