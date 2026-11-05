@@ -108,7 +108,7 @@ describe("create-url service: createShortUrl", () => {
       );
 
       expect(err.statusCode).to.equal(409);
-      expect(err.message).to.equal("Custom code already taken");
+      expect(err.message).to.equal("This code is taken or was used before");
       expect(savedItems()).to.have.lengthOf(1);
     });
 

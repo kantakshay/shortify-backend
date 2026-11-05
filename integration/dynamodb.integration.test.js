@@ -80,6 +80,8 @@ describe("integration: DynamoDB Local", function () {
 
     expect(notFound.statusCode).to.equal(404);
     expect(taken.statusCode).to.equal(409);
+    // "not found" when opened, so the 409 must not just say "taken"
+    expect(taken.message).to.equal("This code is taken or was used before");
     expect((await getItem("oldpromo")).long_url).to.equal("https://example.com/old");
   });
 

@@ -32,24 +32,41 @@ Client → API Gateway → Lambda → DynamoDB
 
 ```
 shortify-backend/
-
-├── .github/workflows/        # CI/CD pipeline
-│   └── deploy-dev.yml
+├── .github/
+│   ├── workflows/
+│   │   ├── test.yml              # PRs + pushes: lint, format, unit and integration tests
+│   │   └── deploy-dev.yml        # manual deploy to dev (main/develop only) + smoke test
+│   └── pull_request_template.md
 │
-├── serverless.yml            # Main config
-│
-├── serverless/               # Modular configs
-│   ├── environment.yml
+├── serverless.yml                # entry point; pulls in the files below
+├── serverless/
+│   ├── environment.yml           # per-stage env vars (TABLE_NAME, STAGE, BASE_URL)
 │   ├── custom.yml
-│   ├── functions.yml
-│   ├── dynamodb-resources.yml
+│   ├── functions.yml             # the 3 Lambdas: routes, IAM, packaging
+│   └── dynamodb-resources.yml    # the URL table (protected, backed up)
 │
-├── functions/                # Lambda functions
-│   ├── create-url/
-│   │   └── handler.js
-│   ├── redirect/
-│       └── handler.js
+├── functions/                    # one folder per Lambda, same 3-file shape
+│   ├── create-url/               # POST /shorten
+│   │   ├── handler.js            #   HTTP in/out
+│   │   ├── service.js            #   validation and business rules
+│   │   ├── dynamoDB.js           #   database calls
+│   │   └── test/                 #   unit tests (DynamoDB mocked) + config tests
+│   ├── redirect-url/             # GET /{short_code}   (same files)
+│   └── analytics/                # GET /analytics/{short_code}   (same files)
 │
+├── shared/                       # code every Lambda bundles
+│   ├── dynamo.js                 # the one DynamoDB client
+│   ├── response.js               # JSON / redirect / error responses with CORS
+│   ├── log.js                    # WARN for user mistakes, ERROR for real failures
+│   ├── expiry.js                 # isExpired()
+│   └── test/
+│
+├── integration/                  # tests against DynamoDB Local (Docker)
+│   ├── setup.js
+│   └── dynamodb.integration.test.js
+│
+├── eslint.config.js              # lint (bugs, not style)
+├── .prettierrc.json              # formatting
 ├── package.json
 └── README.md
 ```
@@ -58,22 +75,28 @@ shortify-backend/
 
 ## ⚡ Features
 
-* Serverless architecture (no servers to manage)
-* Manual CI/CD pipeline using GitHub Actions
-* DynamoDB-based storage
-* REST API endpoints
-* Modular infrastructure configuration
+* Short links with an optional custom code and an optional expiry date
+* `302` redirects with click counting and a last-clicked time
+* Analytics per link (clicks, created, last clicked, expiry)
+* Codes are never reused, even after a link expires
+* Rate limit on the whole API (10 requests per second, bursts of 20)
+* One IAM role per Lambda, with only the DynamoDB actions it needs
+* Protected, continuously backed-up table
+* CI: lint, format check, unit tests and integration tests (DynamoDB Local) on every PR
+* Manual deploy from `main`/`develop` only, with OIDC (no stored AWS keys) and a smoke test against the live API
 
 ---
 
 ## 🛠️ Tech Stack
 
-* Node.js
-* Serverless Framework
+* Node.js 24 (Lambda runtime `nodejs24.x`), AWS SDK v3
+* Serverless Framework v4
 * AWS Lambda
 * API Gateway
 * DynamoDB
 * GitHub Actions
+* Mocha, Chai, aws-sdk-client-mock, DynamoDB Local
+* ESLint, Prettier
 
 ---
 
@@ -112,6 +135,8 @@ POST /shorten
 ```
 
 `expires_at` is only included when the link has an expiry.
+
+If the custom code is already used, the response is `409` with `{ "error": "This code is taken or was used before" }`. That includes the codes of expired links: opening one gives `404`, but its code is never given out again (see [Design decisions](#-design-decisions)).
 
 ---
 
@@ -178,6 +203,17 @@ The workflow logs in to AWS with **OIDC**: GitHub gives each run a short-lived t
 - the variable `AWS_DEPLOY_ROLE_ARN` (the role's ARN) on the `dev` environment;
 - the secret `SERVERLESS_ACCESS_KEY` (Serverless Framework v4 sign-in).
 
+### Smoke test after every deploy
+
+The last step of the deploy uses the live `dev` API like a user would, and fails the run (red) if anything is wrong:
+
+1. `POST /shorten` creates a test link that expires in 10 minutes → expects `201`.
+2. `GET /<code>`, without following the redirect → expects `302` to exactly the test URL.
+3. `GET /analytics/<code>` → expects `200` and `clicks` ≥ 1 (retried a few times, because the read can lag the click by a moment).
+4. The real table still has point-in-time recovery and deletion protection on.
+
+The log says which check failed and what the API returned. The test link stays in the table after it expires (codes are never reused), so each deploy leaves one harmless retired link. A red smoke test means the broken version **is already live** on `dev`; it tells you straight away, it doesn't roll back. The deploy role needs `dynamodb:DescribeTable` and `dynamodb:DescribeContinuousBackups` on the table for step 4.
+
 ### The table is protected
 
 The DynamoDB table holds every link, so it can't be deleted by accident:
@@ -235,13 +271,42 @@ serverless/environment.yml
 
 ---
 
-## 📈 Future Improvements
+## 🧭 Design decisions
 
-* Base62 ID generation (collision-free)
-* Redis caching for faster redirects
-* Analytics (click tracking)
-* Custom domain support
-* Rate limiting & security
+Trade-offs made on purpose. Change them only after revisiting the reason.
+
+**A code is never reused, even after its link expires.**
+- Old copies of a link (flyers, emails, QR codes, bookmarks) must never start pointing somewhere new.
+- So expired links stay in the table as retired records, and the table has **no TTL** (auto-delete would free their codes). Every reader treats an expired link as not found.
+- Creating a custom code that's taken *or* retired gives the same `409` message. That way the "not found" and "taken" answers don't look like a contradiction, and nobody can probe which codes existed before.
+
+**Redirects are `302` (temporary), not `301` (permanent).**
+- Browsers cache a `301` and skip us next time, so later clicks wouldn't be counted and an expired link would keep working from the cache.
+- With `302`, every click reaches us. The cost is one request to us per click.
+
+**Clicks are counted during the redirect.**
+- The redirect waits for one atomic `UpdateItem` (`clicks + 1`, `last_clicked_at`), which adds a few milliseconds.
+- It isn't fire-and-forget: Lambda can freeze as soon as the response is returned, so an un-awaited write could be lost.
+- If the write fails, the visitor is still redirected and the failure is logged as an ERROR. A lost click is better than a broken link.
+- Clicks at the same moment are all counted (DynamoDB adds them atomically). For `last_clicked_at`, the last write wins, which is fine because they're milliseconds apart.
+- **Later**, with much more traffic: send click events to a queue (SQS) and count them in batches, so redirects never wait for the database.
+
+**The same URL shortened twice gets two codes.** Each has its own clicks and expiry. Revisit when there are user accounts (then reuse per user).
+
+**One rate limit for the whole API.** API Gateway stage throttling (10 requests per second, bursts of 20) protects the budget, and requests over it get `429`. It's shared by all callers, so one busy caller can slow everyone. Per-user limits need API keys or accounts.
+
+**Deploys only from `main` and `develop`,** after review, to the single `dev` stage. Trying a branch before merging would need its own per-PR stage.
+
+## 📈 Later
+
+* Don't count link previews (WhatsApp, Slack…) as clicks
+* Clicks per day, and where clicks come from (site, device, country; no IP addresses stored)
+* Count clicks through a queue (SQS) instead of during the redirect
+* An alarm when clicks fail to be counted
+* Structured (JSON) logs
+* User accounts: own links, per-user rate limits
+* Scanning links for malware and phishing
+* A custom domain (only `BASE_URL` changes)
 
 ---
 
